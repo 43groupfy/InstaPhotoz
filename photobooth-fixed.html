@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>✦ PHOTOBOOTH PRO ✦</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0e0c0a;
+    --surface: #1a1714;
+    --surface2: #242018;
+    --border: #3a3328;
+    --gold: #c9a84c;
+    --gold-light: #e8c97a;
+    --cream: #f0e8d8;
+    --muted: #7a7060;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--cream);
+    font-family: 'Inter', sans-serif;
+    font-weight: 400;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  header {
+    text-align: center;
+    padding: 2rem 1rem 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  header::before {
+    content: '✦ ✦ ✦';
+    display: block;
+    font-size: 0.6rem;
+    letter-spacing: 0.5rem;
+    color: var(--gold);
+    margin-bottom: 0.5rem;
+  }
+
+  h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(1.8rem, 4vw, 3rem);
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: var(--cream);
+    line-height: 1;
+  }
+
+  h1 span {
+    color: var(--gold);
+    font-style: italic;
+  }
+
+  .subtitle {
+    font-size: 0.75rem;
+    letter-spacing: 0.2rem;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: 0.5rem;
+  }
+
+  .app {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 2rem;
+    align-items: start;
+  }
+
+  @media (max-width: 768px) {
+    .app { grid-template-columns: 1fr; }
+  }
+
+  .camera-section { display: flex; flex-direction: column; gap: 1.25rem; }
+
+  .viewfinder {
+    position: relative;
+    background: #000;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    aspect-ratio: 4/3;
+    border-radius: 4px;
+  }
+
+  .viewfinder::before, .viewfinder::after {
+    content: ''; position: absolute; width: 20px; height: 20px; z-index: 10;
+  }
+  .viewfinder::before { top: 12px; left: 12px; border-top: 2px solid var(--gold); border-left: 2px solid var(--gold); }
+  .viewfinder::after { bottom: 12px; right: 12px; border-bottom: 2px solid var(--gold); border-right: 2px solid var(--gold); }
+
+  .corner-br {
+    position: absolute; bottom: 12px; left: 12px; width: 20px; height: 20px;
+    border-bottom: 2px solid var(--gold); border-left: 2px solid var(--gold); z-index: 10;
+  }
+  .corner-tl {
+    position: absolute; top: 12px; right: 12px; width: 20px; height: 20px;
+    border-top: 2px solid var(--gold); border-right: 2px solid var(--gold); z-index: 10;
+  }
+
+  #video {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+    transform: scaleX(-1);
+  }
+
+  .filter-preview { width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; }
+
+  .countdown-overlay {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.6);
+    z-index: 20;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .countdown-overlay.active { opacity: 1; pointer-events: all; }
+
+  .countdown-num {
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: 8rem;
+    color: var(--gold-light);
+    text-shadow: 0 0 40px rgba(201,168,76,0.5);
+    animation: popIn 0.3s ease;
+    line-height: 1;
+  }
+
+  @keyframes popIn {
+    0% { transform: scale(1.4); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  .flash-overlay {
+    position: absolute; inset: 0;
+    background: white;
+    z-index: 30;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.05s;
+  }
+  .flash-overlay.flash { opacity: 1; }
+
+  .shot-counter {
+    position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+    z-index: 10;
+    display: flex; gap: 8px;
+  }
+
+  .shot-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    border: 1.5px solid var(--gold);
+    background: rgba(0,0,0,0.5);
+    transition: background 0.3s;
+  }
+  .shot-dot.taken { background: var(--gold); }
+
+  .filter-bar {
+    display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+  .filter-bar::-webkit-scrollbar { display: none; }
+
+  .filter-btn {
+    flex-shrink: 0;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    cursor: pointer; background: none; border: none; color: var(--muted);
+    font-family: 'DM Mono', monospace; font-size: 0.65rem;
+    letter-spacing: 0.05em; text-transform: uppercase;
+    transition: color 0.2s;
+  }
+
+  .filter-thumb {
+    width: 56px; height: 44px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    transition: border-color 0.2s, transform 0.15s;
+    background: var(--surface2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem;
+  }
+
+  .filter-btn.active .filter-thumb { border-color: var(--gold); transform: scale(1.05); }
+  .filter-btn.active { color: var(--gold-light); }
+
+  .controls { display: flex; gap: 1rem; align-items: center; }
+
+  .btn-capture {
+    flex: 1;
+    padding: 1rem;
+    background: var(--gold);
+    color: #0e0c0a;
+    border: none;
+    border-radius: 4px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+  }
+  .btn-capture:hover { background: var(--gold-light); }
+  .btn-capture:active { transform: scale(0.98); }
+  .btn-capture:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-reset {
+    padding: 1rem;
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-reset:hover { color: var(--cream); border-color: var(--muted); }
+
+  .section-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.75rem;
+    display: block;
+  }
+
+  .frame-grid {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem;
+  }
+
+  .frame-opt {
+    aspect-ratio: 2/3;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: border-color 0.2s, transform 0.15s;
+    background: var(--surface);
+    position: relative; overflow: hidden;
+  }
+  .frame-opt:hover { border-color: var(--muted); transform: translateY(-2px); }
+  .frame-opt.active { border-color: var(--gold); border-width: 2px; }
+
+  .frame-opt-label {
+    position: absolute; bottom: 8px; left: 0; right: 0;
+    text-align: center;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.6rem;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+  }
+
+  .strip-panel { display: flex; flex-direction: column; gap: 1.25rem; }
+
+  .strip-wrapper {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 1.5rem;
+    border-radius: 6px;
+    display: flex; justify-content: center;
+  }
+
+  #stripCanvas {
+    max-width: 100%;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    display: block;
+  }
+
+  .strip-placeholder {
+    width: 100%; aspect-ratio: 1/2.5;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 0.75rem;
+    color: var(--muted);
+  }
+
+  .strip-placeholder .icon { font-size: 2.5rem; opacity: 0.3; }
+  .strip-placeholder p { font-size: 0.75rem; letter-spacing: 0.05em; text-transform: uppercase; font-weight: 500;}
+
+  .btn-download {
+    width: 100%;
+    padding: 1rem;
+    background: transparent;
+    color: var(--gold);
+    border: 1px solid var(--gold);
+    border-radius: 4px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-download:hover { background: var(--gold); color: #0e0c0a; }
+  .btn-download:disabled { opacity: 0.3; cursor: not-allowed; border-color: var(--muted); color: var(--muted); }
+
+  .settings-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 1.25rem;
+    border-radius: 6px;
+  }
+
+  .setting-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .setting-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .setting-row:first-child { padding-top: 0; }
+
+  .setting-row label {
+    font-size: 0.75rem; letter-spacing: 0.05em; color: #aaa;
+    font-weight: 500;
+  }
+
+  .toggle { position: relative; width: 40px; height: 22px; cursor: pointer; }
+  .toggle input { display: none; }
+  .toggle-track {
+    position: absolute; inset: 0; background: var(--border); border-radius: 12px; transition: background 0.2s;
+  }
+  .toggle input:checked + .toggle-track { background: var(--gold); }
+  .toggle-thumb {
+    position: absolute; width: 16px; height: 16px; background: var(--cream);
+    border-radius: 50%; top: 3px; left: 3px; transition: transform 0.2s;
+  }
+  .toggle input:checked ~ .toggle-thumb { transform: translateX(18px); }
+
+  select.mini-select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--cream);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.75rem;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    outline: none;
+  }
+  select.mini-select:focus { border-color: var(--gold); }
+
+  .no-camera {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 1rem;
+    color: var(--muted); text-align: center;
+    padding: 2rem;
+    background: var(--bg);
+    z-index: 50;
+  }
+  .no-camera .icon { font-size: 3rem; opacity: 0.4; }
+  .no-camera p { font-size: 0.85rem; line-height: 1.5; font-weight: 500; }
+
+  .btn-start-cam {
+    padding: 0.75rem 1.5rem;
+    background: var(--gold);
+    color: #0e0c0a;
+    border: none; border-radius: 4px;
+    font-family: 'Inter', sans-serif; font-size: 0.8rem;
+    letter-spacing: 0.05em; cursor: pointer;
+    font-weight: 600; text-transform: uppercase;
+  }
+
+  canvas.hidden { display: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Photo<span>booth</span></h1>
+  <p class="subtitle">Studio Experience</p>
+</header>
+
+<div class="app">
+  <div class="camera-section">
+    <div class="viewfinder" id="viewfinder">
+      <div class="corner-br"></div>
+      <div class="corner-tl"></div>
+      <video id="video" autoplay playsinline muted></video>
+      <canvas id="filterCanvas" class="filter-preview hidden"></canvas>
+
+      <div class="shot-counter" id="shotCounter">
+        <div class="shot-dot" id="dot0"></div>
+        <div class="shot-dot" id="dot1"></div>
+        <div class="shot-dot" id="dot2"></div>
+        <div class="shot-dot" id="dot3"></div>
+      </div>
+
+      <div class="countdown-overlay" id="countdownOverlay">
+        <span class="countdown-num" id="countdownNum">3</span>
+      </div>
+
+      <div class="flash-overlay" id="flashOverlay"></div>
+
+      <div class="no-camera" id="noCameraMsg">
+        <span class="icon">📷</span>
+        <p>Akses kamera diperlukan<br>untuk memulai photobooth</p>
+        <button class="btn-start-cam" onclick="startCamera()">Beri Akses</button>
+      </div>
+    </div>
+
+    <div>
+      <span class="section-label">Filter Lensa</span>
+      <div class="filter-bar" id="filterBar"></div>
+    </div>
+
+    <div class="controls">
+      <button class="btn-capture" id="captureBtn" onclick="startSequence()">
+        ● Ambil Foto
+      </button>
+      <button class="btn-reset" onclick="resetSession()">↺ Reset</button>
+    </div>
+
+    <div>
+      <span class="section-label">Pilihan Tema Bingkai</span>
+      <div class="frame-grid" id="frameGrid"></div>
+    </div>
+  </div>
+
+  <div class="strip-panel">
+    <div class="settings-card">
+      <div class="setting-row">
+        <label>Mode Photobooth</label>
+        <select class="mini-select" id="countSelect" onchange="onModeChange()">
+          <option value="4">4 Foto (Classic)</option>
+          <option value="3">3 Foto (Modern)</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <label>Timer Mundur</label>
+        <select class="mini-select" id="timerSelect">
+          <option value="3">3 detik</option>
+          <option value="5">5 detik</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <label>Efek Cermin (Mirror)</label>
+        <label class="toggle">
+          <input type="checkbox" id="mirrorToggle" checked onchange="applyMirror()">
+          <div class="toggle-track"></div>
+          <div class="toggle-thumb"></div>
+        </label>
+      </div>
+      <div class="setting-row">
+        <label>Tanggal di Strip</label>
+        <label class="toggle">
+          <input type="checkbox" id="dateToggle" checked>
+          <div class="toggle-track"></div>
+          <div class="toggle-thumb"></div>
+        </label>
+      </div>
+    </div>
+
+    <div>
+      <div class="strip-wrapper">
+        <div class="strip-placeholder" id="stripPlaceholder">
+          <span class="icon">🎞️</span>
+          <p>Hasil akan muncul di sini</p>
+        </div>
+        <canvas id="stripCanvas" class="hidden"></canvas>
+      </div>
+    </div>
+
+    <button class="btn-download" id="downloadBtn" onclick="downloadStrip()" disabled>
+      ↓ Unduh Foto
+    </button>
+  </div>
+</div>
+
+<canvas id="captureCanvas" class="hidden"></canvas>
+
+<script>
+const video = document.getElementById('video');
+const captureCanvas = document.getElementById('captureCanvas');
+const stripCanvas = document.getElementById('stripCanvas');
+const filterCanvas = document.getElementById('filterCanvas');
+const countdownOverlay = document.getElementById('countdownOverlay');
+const countdownNum = document.getElementById('countdownNum');
+const flashOverlay = document.getElementById('flashOverlay');
+const captureBtn = document.getElementById('captureBtn');
+const downloadBtn = document.getElementById('downloadBtn');
+const stripPlaceholder = document.getElementById('stripPlaceholder');
+const noCameraMsg = document.getElementById('noCameraMsg');
+
+let stream = null;
+let capturedPhotos = [];
+let currentFilter = 'normal';
+let currentFrame = null;
+let filterAnimFrame = null;
+let isRunning = false;
+
+// ── Filters ────────────────────────────────────────────────────────────
+const FILTERS = [
+  { id: 'normal', label: 'Normal', icon: '☀️', css: 'none' },
+  { id: 'bw',     label: 'B&W',    icon: '⬛', css: 'grayscale(1)' },
+  { id: 'vivid',  label: 'Vivid',  icon: '🌈', css: 'saturate(1.8) contrast(1.1)' },
+  { id: 'fade',   label: 'Fade',   icon: '🌫️', css: 'contrast(0.8) brightness(1.15) saturate(0.7)' },
+  { id: 'cool',   label: 'Cool',   icon: '🔵', css: 'hue-rotate(200deg) saturate(1.2)' }
+];
+
+function buildFilterBar() {
+  const bar = document.getElementById('filterBar');
+  FILTERS.forEach(f => {
+    const btn = document.createElement('button');
+    btn.className = 'filter-btn' + (f.id === 'normal' ? ' active' : '');
+    btn.dataset.id = f.id;
+    btn.innerHTML = `<div class="filter-thumb">${f.icon}</div><span>${f.label}</span>`;
+    btn.onclick = () => {
+      currentFilter = f.id;
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      applyFilterLoop();
+    };
+    bar.appendChild(btn);
+  });
+}
+
+function getFilterCSS(id) { return (FILTERS.find(f => f.id === id) || FILTERS[0]).css; }
+
+function applyFilterLoop() {
+  if (!stream) return;
+  const f = getFilterCSS(currentFilter);
+  if (f === 'none') {
+    video.style.filter = 'none';
+    filterCanvas.classList.add('hidden');
+    if (filterAnimFrame) { cancelAnimationFrame(filterAnimFrame); filterAnimFrame = null; }
+    return;
+  }
+  filterCanvas.classList.remove('hidden');
+  video.style.opacity = '0';
+
+  const ctx = filterCanvas.getContext('2d');
+  function loop() {
+    if (!stream) return;
+    filterCanvas.width = video.videoWidth || 640;
+    filterCanvas.height = video.videoHeight || 480;
+    ctx.filter = f;
+    const mirror = document.getElementById('mirrorToggle').checked;
+    ctx.save();
+    if (mirror) { ctx.translate(filterCanvas.width, 0); ctx.scale(-1, 1); }
+    ctx.drawImage(video, 0, 0, filterCanvas.width, filterCanvas.height);
+    ctx.restore();
+    filterAnimFrame = requestAnimationFrame(loop);
+  }
+  if (filterAnimFrame) cancelAnimationFrame(filterAnimFrame);
+  loop();
+}
+
+// ── Frames ─────────────────────────────────────────────────────────────
+// PASTIKAN FILE KAMU BENAR-BENAR BEREKSTENSI .png
+const ALL_FRAMES = [
+  { id: '4p_1', count: 4, label: 'Style 1', twibbon: '4P-style1.png', bg: '#ffffff', accent: '#333' },
+  { id: '4p_2', count: 4, label: 'Style 2', twibbon: '4P-style2.png', bg: '#f4f0ec', accent: '#5a5245' },
+  { id: '3p_1', count: 3, label: 'Style 1', twibbon: '3P-style1.png', bg: '#ffffff', accent: '#333' },
+  { id: '3p_2', count: 3, label: 'Style 2', twibbon: '3P-style2.png', bg: '#1e293b', accent: '#f8fafc' },
+];
+
+function buildFrameGrid() {
+  const grid = document.getElementById('frameGrid');
+  grid.innerHTML = '';
+  const selectedCount = parseInt(document.getElementById('countSelect').value);
+  
+  const filteredFrames = ALL_FRAMES.filter(f => f.count === selectedCount);
+  
+  if (!filteredFrames.find(f => f.id === currentFrame)) {
+    currentFrame = filteredFrames[0].id;
+  }
+
+  filteredFrames.forEach(fr => {
+    const opt = document.createElement('div');
+    opt.className = 'frame-opt' + (fr.id === currentFrame ? ' active' : '');
+    opt.dataset.id = fr.id;
+    opt.style.background = fr.bg;
+    
+    const holesHtml = Array(fr.count).fill(0).map(() => 
+      `<div style="background:${fr.accent};opacity:0.2;height:12px;border-radius:2px"></div>`
+    ).join('');
+
+    opt.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:4px;padding:8px;width:100%">
+        ${holesHtml}
+      </div>
+      <div class="frame-opt-label" style="color:${fr.accent};opacity:0.9;">${fr.label}</div>
+    `;
+    
+    opt.onclick = () => {
+      currentFrame = fr.id;
+      document.querySelectorAll('.frame-opt').forEach(o => o.classList.remove('active'));
+      opt.classList.add('active');
+      if (capturedPhotos.length > 0) renderStrip();
+    };
+    grid.appendChild(opt);
+  });
+}
+
+function onModeChange() {
+  resetSession();
+  buildFrameGrid();
+  updateDots();
+}
+
+// ── Camera ────────────────────────────────────────────────────────────
+async function startCamera() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 960 } }, audio: false });
+    video.srcObject = stream;
+    noCameraMsg.style.display = 'none';
+    video.style.opacity = '1';
+    video.style.filter = 'none';
+    applyMirror();
+    applyFilterLoop();
+  } catch (e) {
+    noCameraMsg.querySelector('p').textContent = 'Akses kamera ditolak. Izinkan di pengaturan browser.';
+  }
+}
+
+function applyMirror() {
+  const m = document.getElementById('mirrorToggle').checked;
+  video.style.transform = m ? 'scaleX(-1)' : 'scaleX(1)';
+}
+
+function updateDots() {
+  const count = parseInt(document.getElementById('countSelect').value);
+  for (let i = 0; i < 4; i++) {
+    const dot = document.getElementById('dot' + i);
+    if (i < count) { dot.style.display = 'block'; dot.classList.remove('taken'); }
+    else dot.style.display = 'none';
+  }
+}
+
+async function startSequence() {
+  if (!stream) { alert('Tolong izinkan akses kamera terlebih dahulu.'); return; }
+  if (isRunning) return;
+  isRunning = true;
+  captureBtn.disabled = true;
+  capturedPhotos = [];
+  updateDots();
+
+  const count = parseInt(document.getElementById('countSelect').value);
+  const timerSec = parseInt(document.getElementById('timerSelect').value);
+
+  for (let i = 0; i < count; i++) {
+    if (timerSec > 0) await countdown(timerSec);
+    await captureOne(i);
+    if (i < count - 1) await sleep(800);
+  }
+
+  renderStrip();
+  captureBtn.disabled = false;
+  isRunning = false;
+}
+
+function countdown(sec) {
+  return new Promise(res => {
+    countdownOverlay.classList.add('active');
+    let n = sec;
+    countdownNum.textContent = n;
+    countdownNum.style.animation = 'none';
+    void countdownNum.offsetWidth;
+    countdownNum.style.animation = '';
+
+    const iv = setInterval(() => {
+      n--;
+      if (n <= 0) {
+        clearInterval(iv);
+        countdownOverlay.classList.remove('active');
+        res();
+      } else {
+        countdownNum.textContent = n;
+        countdownNum.style.animation = 'none';
+        void countdownNum.offsetWidth;
+        countdownNum.style.animation = 'popIn 0.3s ease';
+      }
+    }, 1000);
+  });
+}
+
+function flash() {
+  return new Promise(res => {
+    flashOverlay.classList.add('flash');
+    setTimeout(() => { flashOverlay.classList.remove('flash'); res(); }, 150);
+  });
+}
+
+async function captureOne(index) {
+  await flash();
+  const w = video.videoWidth || 640;
+  const h = video.videoHeight || 480;
+  captureCanvas.width = w;
+  captureCanvas.height = h;
+  const ctx = captureCanvas.getContext('2d');
+  const f = getFilterCSS(currentFilter);
+  ctx.filter = f === 'none' ? 'none' : f;
+  const mirror = document.getElementById('mirrorToggle').checked;
+  ctx.save();
+  if (mirror) { ctx.translate(w, 0); ctx.scale(-1, 1); }
+  ctx.drawImage(video, 0, 0, w, h);
+  ctx.restore();
+  
+  capturedPhotos.push(captureCanvas.toDataURL('image/jpeg', 0.92));
+  document.getElementById('dot' + index).classList.add('taken');
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ── Strip Rendering (Twibbon Layered Mode) ──────────────────────────────
+async function renderStrip() {
+  const selectedCount = parseInt(document.getElementById('countSelect').value);
+  if (capturedPhotos.length === 0) return;
+
+  const frame = ALL_FRAMES.find(f => f.id === currentFrame);
+  if (!frame) return;
+
+  // Konstanta Layout
+  const PAD    = 40;
+  const GAP    = 20;
+  const PHOTO_W = 320;
+  const PHOTO_H = Math.round(PHOTO_W * 3 / 4); // 240px
+  const FOOTER  = 160;
+
+  // Kalkulasi ukuran kanvas total
+  const totalW = PHOTO_W + PAD * 2;                                                          // 400
+  const totalH = PAD + (selectedCount * PHOTO_H) + ((selectedCount - 1) * GAP) + GAP + FOOTER + PAD;
+
+  // Set dimensi kanvas SEBELUM mulai menggambar
+  // (mengubah .width/.height akan otomatis clear + reset semua state ctx)
+  stripCanvas.width  = totalW;
+  stripCanvas.height = totalH;
+  const ctx = stripCanvas.getContext('2d');
+
+  // ── LAYER 1: Background polos ─────────────────────────────────────────
+  ctx.fillStyle = frame.bg || '#ffffff';
+  ctx.fillRect(0, 0, totalW, totalH);
+
+  // ── LAYER 2: Foto-foto dari kamera ───────────────────────────────────
+  // Load semua foto dulu secara paralel sebelum menggambar
+  const photoImgs = await Promise.all(
+    capturedPhotos.slice(0, selectedCount).map(src => loadImg(src))
+  );
+
+  photoImgs.forEach((img, i) => {
+    const destX = PAD;
+    const destY = PAD + i * (PHOTO_H + GAP);
+
+    // Cover-crop: potong sisi yang lebih panjang agar mengisi PHOTO_W×PHOTO_H
+    const srcAspect  = img.naturalWidth / img.naturalHeight;
+    const destAspect = PHOTO_W / PHOTO_H;
+    let sx, sy, sw, sh;
+
+    if (srcAspect > destAspect) {
+      // gambar lebih lebar → potong kiri-kanan
+      sh = img.naturalHeight;
+      sw = sh * destAspect;
+      sx = (img.naturalWidth - sw) / 2;
+      sy = 0;
+    } else {
+      // gambar lebih tinggi → potong atas-bawah
+      sw = img.naturalWidth;
+      sh = sw / destAspect;
+      sx = 0;
+      sy = (img.naturalHeight - sh) / 2;
+    }
+
+    // Pastikan ctx bersih dari efek shadow sebelum gambar foto
+    ctx.save();
+    ctx.shadowColor   = 'transparent';
+    ctx.shadowBlur    = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+    ctx.globalAlpha   = 1;
+    ctx.drawImage(img, sx, sy, sw, sh, destX, destY, PHOTO_W, PHOTO_H);
+    ctx.restore();
+  });
+
+  // ── LAYER 3: Teks branding & tanggal ─────────────────────────────────
+  const footerY   = PAD + (selectedCount * PHOTO_H) + ((selectedCount - 1) * GAP) + GAP;
+  const midFooter = footerY + FOOTER / 2;
+
+  ctx.save();
+  ctx.fillStyle   = frame.accent;
+  ctx.textAlign   = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font        = `italic bold 26px "Playfair Display", Georgia, serif`;
+  ctx.fillText('Special Moments', totalW / 2, midFooter - 14);
+
+  if (document.getElementById('dateToggle').checked) {
+    const dateStr = new Date().toLocaleDateString('id-ID', {
+      day: '2-digit', month: 'short', year: 'numeric'
+    });
+    ctx.font        = `500 13px "DM Mono", monospace`;
+    ctx.globalAlpha = 0.65;
+    ctx.fillText(dateStr.toUpperCase(), totalW / 2, midFooter + 16);
+  }
+  ctx.restore();
+
+  // ── LAYER 4: Twibbon PNG — paling atas, fit penuh ke seluruh kanvas ──
+  // WAJIB diload terakhir dan digambar setelah semua layer selesai.
+  // loadImg() menangani crossOrigin agar tidak terkena taint-canvas error.
+  if (frame.twibbon) {
+    try {
+      const overlayImg = await loadImg(frame.twibbon);
+      ctx.save();
+      ctx.globalAlpha   = 1;
+      ctx.globalCompositeOperation = 'source-over'; // pastikan mode normal
+      // Paksa stretch ke (0,0,totalW,totalH) — "lubang" transparan pada PNG
+      // akan memperlihatkan foto-foto di Layer 2 yang ada di bawahnya
+      ctx.drawImage(overlayImg, 0, 0, totalW, totalH);
+      ctx.restore();
+    } catch (err) {
+      console.warn(
+        '[Photobooth] Twibbon gagal dimuat — pastikan file PNG ada ' +
+        'di folder yang sama dengan HTML ini dan nama file PERSIS sama ' +
+        '(case-sensitive):', frame.twibbon, err
+      );
+      // Lanjutkan render tanpa overlay; tidak crash
+    }
+  }
+
+  // Tampilkan hasil akhir ke UI
+  stripPlaceholder.style.display = 'none';
+  stripCanvas.classList.remove('hidden');
+  downloadBtn.disabled = false;
+}
+
+/**
+ * Muat gambar secara async.
+ * - crossOrigin='anonymous' diperlukan agar canvas tidak "tainted" saat
+ *   drawImage() diikuti toDataURL() / toBlob() — terutama untuk file PNG
+ *   twibbon yang dimuat dari path relatif di beberapa browser/server.
+ * - src di-assign SETELAH onload/onerror terpasang untuk menghindari
+ *   race-condition pada gambar yang sudah di-cache oleh browser.
+ */
+function loadImg(src) {
+  return new Promise((resolve, reject) => {
+    const img  = new Image();
+
+    // Hanya set crossOrigin untuk URL eksternal (bukan data: URI).
+    // data: URI dari captureCanvas tidak butuh ini dan akan gagal jika di-set.
+    if (!src.startsWith('data:')) {
+      img.crossOrigin = 'anonymous';
+    }
+
+    img.onload  = () => resolve(img);
+    img.onerror = (e) => reject(new Error(`Gagal memuat gambar: ${src} — ${e.type}`));
+
+    // Assign src SETELAH event handler terpasang (cegah race-condition cache)
+    img.src = src;
+
+    // Jika gambar sudah di-cache dan langsung complete, trigger manual
+    if (img.complete && img.naturalWidth > 0) resolve(img);
+  });
+}
+
+function downloadStrip() {
+  const dateStr = new Date().toISOString().slice(0, 10);
+  const a = document.createElement('a');
+  a.download = `photobooth-${dateStr}.jpg`;
+  a.href = stripCanvas.toDataURL('image/jpeg', 0.95);
+  a.click();
+}
+
+function resetSession() {
+  capturedPhotos = [];
+  updateDots();
+  stripCanvas.classList.add('hidden');
+  stripPlaceholder.style.display = 'flex';
+  downloadBtn.disabled = true;
+  captureBtn.disabled = false;
+  isRunning = false;
+}
+
+buildFilterBar();
+onModeChange();
+startCamera();
+</script>
+</body>
+</html>
