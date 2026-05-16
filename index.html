@@ -1,527 +1,361 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>✦ PHOTOBOOTH PRO ✦</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>✦ PHOTOBOOTH PRO HD ✦</title>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0e0c0a;
+      --surface: #1a1714;
+      --surface2: #242018;
+      --border: #3a3328;
+      --gold: #c9a84c;
+      --gold-light: #e8c97a;
+      --cream: #f0e8d8;
+      --muted: #7a7060;
+    }
+    
+    html, body { height: 100vh; width: 100vw; background: var(--bg); color: var(--cream); font-family: 'Inter', sans-serif; overflow: hidden; }
+    
+    /* Setup Overlay & Modals */
+    .setup-overlay, .modal-overlay { position: fixed; inset: 0; z-index: 100; background: var(--bg); display: flex; align-items: center; justify-content: center; padding: 2rem; }
+    .setup-overlay.hidden { display: none; }
+    
+    .modal-overlay { background: rgba(0,0,0,0.85); z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+    .modal-overlay.active { opacity: 1; pointer-events: auto; }
+    .modal-card { background: var(--surface); border: 1px solid var(--border); padding: 2.5rem 2rem; border-radius: 12px; width: 100%; max-width: 400px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.6); transform: translateY(20px); transition: transform 0.3s; }
+    .modal-overlay.active .modal-card { transform: translateY(0); }
+    
+    .setup-card { background: var(--surface); border: 1px solid var(--border); padding: 2rem; border-radius: 8px; width: 100%; max-width: 400px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+    .setup-card h2, .modal-card h3 { font-family: 'Playfair Display', serif; color: var(--gold); margin-bottom: 1.5rem; text-align: center; }
+    .modal-card h3 { font-size: 1.6rem; margin-bottom: 1rem; }
+    .modal-card p { font-size: 0.9rem; color: var(--muted); margin-bottom: 2rem; line-height: 1.6; }
+    
+    .modal-btn-group { display: flex; flex-direction: column; gap: 0.75rem; }
+    .btn-modal { padding: 1rem; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.05em; transition: all 0.2s; font-family: 'Inter', sans-serif;}
+    .btn-modal.copy { background: var(--gold); color: #000; }
+    .btn-modal.copy:hover { background: var(--gold-light); transform: scale(1.02); }
+    .btn-modal.retake { background: var(--surface2); color: var(--cream); border: 1px solid var(--border); }
+    .btn-modal.retake:hover { background: var(--border); }
 
-  :root {
-    --bg: #0e0c0a;
-    --surface: #1a1714;
-    --surface2: #242018;
-    --border: #3a3328;
-    --gold: #c9a84c;
-    --gold-light: #e8c97a;
-    --cream: #f0e8d8;
-    --muted: #7a7060;
-    --strip-bg: #faf6ef;
-    --red: #c94c4c;
-  }
+    /* Main App */
+    .app-container { display: none; opacity: 0; transition: opacity 0.5s; height: 100%; width: 100%; }
+    .app-container.visible { display: block; opacity: 1; }
+    .app { max-width: 1200px; margin: 0 auto; padding: 1.5rem; height: 100%; display: grid; grid-template-columns: 1fr 340px; gap: 1.5rem; }
+    
+    /* Perbaikan Bug Tampilan HP (Fix Height Collapse) */
+    @media (max-width: 850px) { 
+      .app { display: flex; flex-direction: column; overflow-y: auto; height: auto; min-height: 100vh; } 
+      .left-panel { flex: none; height: auto; display: flex; flex-direction: column; }
+      .viewfinder { min-height: 60vh; flex: none; } /* Kunci Fix Bug Kamera HP */
+      html, body { overflow: auto; } 
+    }
 
-  html, body {
-    height: 100%;
-    background: var(--bg);
-    color: var(--cream);
-    font-family: 'DM Sans', sans-serif;
-    font-weight: 300;
-    overflow-x: hidden;
-  }
+    /* Panels */
+    .left-panel { height: 100%; display: flex; flex-direction: column; overflow: hidden; }
+    .step-view { height: 100%; display: none; flex-direction: column; gap: 0.75rem; animation: fadeIn 0.4s ease; }
+    .step-view.active { display: flex; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-  /* Grain overlay */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-    pointer-events: none;
-    z-index: 9999;
-    opacity: 0.4;
-  }
+    /* Camera Section */
+    .viewfinder-wrapper { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 1rem; }
+    .viewfinder { position: relative; background: #000; border: 1px solid var(--border); overflow: hidden; border-radius: 6px; flex: 1; min-height: 0; display: flex; justify-content: center; align-items: center; container-type: size; }
+    #video { position: absolute; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); z-index: 1; }
+    .filter-preview { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 2; }
+    
+    .mask-container { position: absolute; inset: 0; z-index: 5; pointer-events: none; display: flex; justify-content: center; align-items: center; overflow: hidden; }
+    .mask-cutout { box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.75); border: 2px dashed rgba(255, 255, 255, 0.6); border-radius: 2px; transition: aspect-ratio 0.3s; }
+    
+    /* SETUP DINAMIS MASK KAMERA (3:2, 4:3, dan 4:5) */
+    .mask-container.ratio-3-2 .mask-cutout { aspect-ratio: 3 / 2; }
+    @container (min-aspect-ratio: 3/2) { .mask-container.ratio-3-2 .mask-cutout { width: auto; height: 100%; } }
+    @container (max-aspect-ratio: 3/2) { .mask-container.ratio-3-2 .mask-cutout { width: 100%; height: auto; } }
 
-  header {
-    text-align: center;
-    padding: 2rem 1rem 1rem;
-    border-bottom: 1px solid var(--border);
-    position: relative;
-  }
+    .mask-container.ratio-4-3 .mask-cutout { aspect-ratio: 4 / 3; }
+    @container (min-aspect-ratio: 4/3) { .mask-container.ratio-4-3 .mask-cutout { width: auto; height: 100%; } }
+    @container (max-aspect-ratio: 4/3) { .mask-container.ratio-4-3 .mask-cutout { width: 100%; height: auto; } }
 
-  header::before {
-    content: '✦ ✦ ✦';
-    display: block;
-    font-size: 0.6rem;
-    letter-spacing: 0.5rem;
-    color: var(--gold);
-    margin-bottom: 0.5rem;
-  }
+    .mask-container.ratio-4-5 .mask-cutout { aspect-ratio: 4 / 5; }
+    @container (min-aspect-ratio: 4/5) { .mask-container.ratio-4-5 .mask-cutout { width: auto; height: 100%; } }
+    @container (max-aspect-ratio: 4/5) { .mask-container.ratio-4-5 .mask-cutout { width: 100%; height: auto; } }
 
-  h1 {
-    font-family: 'Playfair Display', serif;
-    font-size: clamp(2rem, 5vw, 3.5rem);
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    color: var(--cream);
-    line-height: 1;
-  }
+    #reviewImg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #050505; z-index: 60; }
+    #reviewImg.hidden { display: none; }
 
-  h1 span {
-    color: var(--gold);
-    font-style: italic;
-  }
+    /* Filter Floating Menu */
+    .filter-floating-menu { position: absolute; top: 16px; right: 16px; z-index: 50; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .filter-fab, .filter-opt-btn { width: 44px; height: 44px; border-radius: 50%; background: rgba(36, 32, 24, 0.85); backdrop-filter: blur(8px); border: 1px solid var(--border); color: var(--cream); display: flex; justify-content: center; align-items: center; cursor: pointer; transition: all 0.2s; }
+    .filter-fab { background: var(--surface2); border-color: var(--gold); color: var(--gold); box-shadow: 0 4px 15px rgba(0,0,0,0.6); }
+    .filter-fab:hover, .filter-opt-btn:hover { transform: scale(1.05); background: var(--surface); }
+    .filter-options { display: flex; flex-direction: column; gap: 8px; opacity: 0; pointer-events: none; transform: translateY(-10px); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+    .filter-options.expanded { opacity: 1; pointer-events: auto; transform: translateY(0); }
+    .filter-opt-btn.active { color: var(--gold); border-color: var(--gold); }
+    
+    /* Action Controls */
+    .action-controls { display: flex; justify-content: center; align-items: center; height: 60px; flex-shrink: 0; width: 100%; position: relative; }
+    .btn-capture, .btn-next-step { width: 100%; max-width: 320px; padding: 0.9rem; border: none; border-radius: 30px; font-family: 'Inter', sans-serif; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; box-shadow: 0 8px 20px rgba(0,0,0,0.5); transition: all 0.2s; }
+    .btn-capture { background: var(--gold); color: #0e0c0a; }
+    .btn-capture:hover { background: var(--gold-light); }
+    .btn-capture:active { transform: scale(0.96); }
+    .btn-capture.hidden { display: none; }
+    .btn-next-step { background: var(--cream); color: #0e0c0a; display: none; }
+    .btn-next-step:hover { background: #fff; }
+    .review-controls { display: flex; gap: 1rem; width: 100%; max-width: 320px; }
+    .review-controls.hidden { display: none; }
+    .review-controls button { flex: 1; padding: 0.9rem; border: none; border-radius: 30px; font-family: 'Inter', sans-serif; font-size: 0.8rem; font-weight: 700; cursor: pointer; text-transform: uppercase; transition: all 0.2s;}
+    .btn-retake { background: var(--surface2); color: var(--cream); border: 1px solid var(--border); }
+    .btn-accept { background: var(--gold); color: #0e0c0a; }
 
-  .subtitle {
-    font-size: 0.72rem;
-    letter-spacing: 0.25rem;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin-top: 0.4rem;
-  }
+    /* Overlays */
+    .countdown-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.4); z-index: 20; opacity: 0; pointer-events: none; }
+    .countdown-overlay.active { opacity: 1; }
+    .countdown-num { font-size: 8rem; color: var(--gold-light); font-weight: 700; text-shadow: 0 4px 20px rgba(0,0,0,0.8); }
+    .flash-overlay { position: absolute; inset: 0; background: white; z-index: 70; opacity: 0; pointer-events: none; transition: opacity 0.05s; }
+    .flash-overlay.flash { opacity: 1; }
+    
+    .shot-counter { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); z-index: 10; display: flex; gap: 8px; }
+    .shot-dot { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid var(--gold); background: rgba(0,0,0,0.5); transition: background 0.3s; }
+    .shot-dot.taken { background: var(--gold); }
 
-  .app {
-    max-width: 1100px;
-    margin: 0 auto;
-    padding: 2rem 1.5rem 4rem;
-    display: grid;
-    grid-template-columns: 1fr 320px;
-    gap: 2rem;
-    align-items: start;
-  }
+    /* UI Components */
+    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem; flex-shrink: 0; }
+    .section-label { font-family: 'DM Mono', monospace; font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); margin: 0; }
+    .btn-reset-small { background: var(--surface2); border: 1px solid var(--border); color: var(--cream); font-size: 0.7rem; font-weight: 500; cursor: pointer; font-family: 'Inter', sans-serif; padding: 6px 12px; border-radius: 6px; display: flex; align-items: center; gap: 6px; transition: all 0.2s; }
+    .btn-reset-small:hover { background: var(--border); border-color: var(--muted); }
+    
+    /* Strip Kiri Kanan Tabs */
+    .strip-tabs { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; }
+    .strip-tab { flex: 1; padding: 0.75rem; background: var(--surface2); color: var(--muted); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-weight: 600; text-transform: uppercase; font-size: 0.75rem; font-family: 'Inter', sans-serif; transition: all 0.2s; }
+    .strip-tab:hover { background: var(--border); color: var(--cream); }
+    .strip-tab.active { background: var(--gold); color: #0e0c0a; border-color: var(--gold); }
 
-  @media (max-width: 768px) {
-    .app { grid-template-columns: 1fr; }
-  }
+    /* Frame Grid (Step 3) */
+    .frame-grid { display: flex; flex-wrap: wrap; gap: 0.75rem; overflow-y: auto; width: 100%; }
+    .frame-opt { border: 1px solid var(--border); border-radius: 6px; cursor: pointer; position: relative; overflow: hidden; background: var(--surface); display: flex; align-items: center; justify-content: center; transition: all 0.2s; width: calc((100% - (3 * 0.75rem)) / 4); padding: 30px 0; }
+    .frame-opt.active { border: 2px solid var(--gold); transform: scale(1.02); }
+    .frame-opt-label { font-size: 0.85rem; font-weight: 600; color: var(--muted); text-align: center; padding: 0 6px; line-height: 1.2; }
+    @media (max-width: 1024px) { .frame-opt { width: calc((100% - (2 * 0.75rem)) / 3); padding: 25px 0; } }
+    @media (max-width: 650px) { .frame-opt { width: calc((100% - (1 * 0.75rem)) / 2); padding: 20px 0; } .frame-opt-label { font-size: 0.8rem; } }
 
-  /* Camera Section */
-  .camera-section { display: flex; flex-direction: column; gap: 1.25rem; }
+    /* Color Picker UI */
+    .color-picker-container { margin-top: 1rem; background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 8px; border: 1px dashed var(--border); }
+    .color-picker-container.hidden { display: none; }
+    .color-picker { display: flex; justify-content: center; gap: 0.75rem; flex-wrap: wrap; }
+    .color-circle { width: 32px; height: 32px; border-radius: 50%; cursor: pointer; border: 2px solid rgba(255,255,255,0.2); transition: all 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+    .color-circle.active { transform: scale(1.2); border-color: var(--gold); }
 
-  .viewfinder {
-    position: relative;
-    background: #000;
-    border: 1px solid var(--border);
-    overflow: hidden;
-    aspect-ratio: 4/3;
-    border-radius: 2px;
-  }
+    /* Strip Panel */
+    .strip-panel { height: 100%; display: flex; flex-direction: column; gap: 0.75rem; overflow: hidden; }
+    .strip-wrapper { background: var(--surface); border: 1px solid var(--border); padding: 0.5rem; border-radius: 6px; flex: 1; min-height: 0; display: flex; justify-content: center; align-items: center; }
+    #stripCanvas { width: auto; height: auto; max-width: 100%; max-height: 100%; object-fit: contain; box-shadow: 0 10px 30px rgba(0,0,0,0.5); transition: opacity 0.3s; }
+    
+    /* Tombol Aksi di Kolom Kanan */
+    .action-group { display: flex; gap: 0.5rem; width: 100%; flex-shrink: 0; display: none; }
+    .action-group.active { display: flex; }
+    
+    .btn-icon-action { flex: 1; padding: 0.8rem; background: var(--surface2); color: var(--cream); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 0.8rem; text-transform: uppercase;}
+    .btn-icon-action:hover { background: var(--border); }
+    
+    .btn-icon-action.primary { background: var(--gold); color: #0e0c0a; border-color: var(--gold); flex: 1.5; }
+    .btn-icon-action.primary:hover { background: var(--gold-light); }
+    
+    /* Style Tombol QR Code */
+    .btn-icon-action.qr { border-color: var(--gold); color: var(--gold); flex: 1.5; }
+    .btn-icon-action.qr:hover { background: var(--gold); color: #000; }
+    
+    .btn-reset-setup { width: 100%; padding: 1rem; background: transparent; color: var(--muted); border: 1px solid var(--border); border-radius: 4px; font-weight: 600; text-transform: uppercase; cursor: pointer; transition: all 0.2s; flex-shrink: 0; }
+    .btn-reset-setup:hover { background: var(--surface2); color: var(--cream); }
 
-  .viewfinder::before, .viewfinder::after {
-    content: '';
-    position: absolute;
-    width: 20px; height: 20px;
-    z-index: 10;
-  }
-  .viewfinder::before { top: 8px; left: 8px; border-top: 2px solid var(--gold); border-left: 2px solid var(--gold); }
-  .viewfinder::after { bottom: 8px; right: 8px; border-bottom: 2px solid var(--gold); border-right: 2px solid var(--gold); }
-
-  .corner-br {
-    position: absolute; bottom: 8px; left: 8px; width: 20px; height: 20px;
-    border-bottom: 2px solid var(--gold); border-left: 2px solid var(--gold); z-index: 10;
-  }
-  .corner-tl {
-    position: absolute; top: 8px; right: 8px; width: 20px; height: 20px;
-    border-top: 2px solid var(--gold); border-right: 2px solid var(--gold); z-index: 10;
-  }
-
-  #video {
-    width: 100%; height: 100%;
-    object-fit: cover;
-    display: block;
-    transform: scaleX(-1);
-  }
-
-  .filter-preview { width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; }
-
-  .countdown-overlay {
-    position: absolute; inset: 0;
-    display: flex; align-items: center; justify-content: center;
-    background: rgba(0,0,0,0.5);
-    z-index: 20;
-    opacity: 0; pointer-events: none;
-    transition: opacity 0.2s;
-  }
-  .countdown-overlay.active { opacity: 1; pointer-events: all; }
-
-  .countdown-num {
-    font-family: 'Playfair Display', serif;
-    font-size: 8rem;
-    color: var(--gold-light);
-    text-shadow: 0 0 40px rgba(201,168,76,0.5);
-    animation: popIn 0.3s ease;
-    line-height: 1;
-  }
-
-  @keyframes popIn {
-    0% { transform: scale(1.4); opacity: 0; }
-    100% { transform: scale(1); opacity: 1; }
-  }
-
-  .flash-overlay {
-    position: absolute; inset: 0;
-    background: white;
-    z-index: 30;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.05s;
-  }
-  .flash-overlay.flash { opacity: 1; }
-
-  .shot-counter {
-    position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
-    z-index: 10;
-    display: flex; gap: 6px;
-  }
-
-  .shot-dot {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    border: 1.5px solid var(--gold);
-    background: transparent;
-    transition: background 0.3s;
-  }
-  .shot-dot.taken { background: var(--gold); }
-
-  /* Filter bar */
-  .filter-bar {
-    display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 4px;
-    scrollbar-width: none;
-  }
-  .filter-bar::-webkit-scrollbar { display: none; }
-
-  .filter-btn {
-    flex-shrink: 0;
-    display: flex; flex-direction: column; align-items: center; gap: 4px;
-    cursor: pointer; background: none; border: none; color: var(--muted);
-    font-family: 'DM Mono', monospace; font-size: 0.65rem;
-    letter-spacing: 0.05em; text-transform: uppercase;
-    transition: color 0.2s;
-  }
-
-  .filter-thumb {
-    width: 52px; height: 40px;
-    border-radius: 2px;
-    border: 1.5px solid var(--border);
-    overflow: hidden;
-    transition: border-color 0.2s, transform 0.15s;
-    background: #333;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1.2rem;
-  }
-
-  .filter-btn.active .filter-thumb { border-color: var(--gold); transform: scale(1.05); }
-  .filter-btn.active { color: var(--gold-light); }
-
-  /* Controls */
-  .controls { display: flex; gap: 0.75rem; align-items: center; }
-
-  .btn-capture {
-    flex: 1;
-    padding: 0.9rem;
-    background: var(--gold);
-    color: #0e0c0a;
-    border: none;
-    border-radius: 2px;
-    font-family: 'DM Mono', monospace;
-    font-size: 0.8rem;
-    font-weight: 500;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    cursor: pointer;
-    transition: background 0.2s, transform 0.1s;
-  }
-  .btn-capture:hover { background: var(--gold-light); }
-  .btn-capture:active { transform: scale(0.98); }
-  .btn-capture:disabled { opacity: 0.4; cursor: not-allowed; }
-
-  .btn-reset {
-    padding: 0.9rem 1rem;
-    background: transparent;
-    color: var(--muted);
-    border: 1px solid var(--border);
-    border-radius: 2px;
-    font-family: 'DM Mono', monospace;
-    font-size: 0.75rem;
-    letter-spacing: 0.1em;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-  .btn-reset:hover { color: var(--cream); border-color: var(--muted); }
-
-  /* Frame selector */
-  .section-label {
-    font-family: 'DM Mono', monospace;
-    font-size: 0.65rem;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin-bottom: 0.6rem;
-  }
-
-  .frame-grid {
-    display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem;
-  }
-
-  .frame-opt {
-    aspect-ratio: 2/3;
-    border: 1.5px solid var(--border);
-    border-radius: 2px;
-    cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1.2rem;
-    transition: border-color 0.2s, transform 0.15s;
-    background: var(--surface);
-    position: relative; overflow: hidden;
-  }
-  .frame-opt:hover { border-color: var(--muted); transform: scale(1.03); }
-  .frame-opt.active { border-color: var(--gold); border-width: 2px; }
-
-  .frame-opt-label {
-    position: absolute; bottom: 4px; left: 0; right: 0;
-    text-align: center;
-    font-family: 'DM Mono', monospace;
-    font-size: 0.55rem;
-    color: var(--muted);
-    letter-spacing: 0.05em;
-  }
-
-  /* Strip panel */
-  .strip-panel {
-    display: flex; flex-direction: column; gap: 1.25rem;
-  }
-
-  .strip-wrapper {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    padding: 1rem;
-    border-radius: 2px;
-    display: flex; justify-content: center;
-  }
-
-  #stripCanvas {
-    max-width: 100%;
-    border: 1px solid var(--border);
-    display: block;
-    image-rendering: -webkit-optimize-contrast;
-  }
-
-  .strip-placeholder {
-    width: 100%; aspect-ratio: 1/2.5;
-    display: flex; align-items: center; justify-content: center;
-    flex-direction: column; gap: 0.5rem;
-    color: var(--muted);
-  }
-
-  .strip-placeholder .icon { font-size: 2rem; opacity: 0.5; }
-  .strip-placeholder p { font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; }
-
-  .btn-download {
-    width: 100%;
-    padding: 0.9rem;
-    background: transparent;
-    color: var(--gold);
-    border: 1px solid var(--gold);
-    border-radius: 2px;
-    font-family: 'DM Mono', monospace;
-    font-size: 0.8rem;
-    font-weight: 500;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-  .btn-download:hover { background: var(--gold); color: #0e0c0a; }
-  .btn-download:disabled { opacity: 0.3; cursor: not-allowed; }
-
-  /* Settings card */
-  .settings-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    padding: 1rem;
-    border-radius: 2px;
-  }
-
-  .setting-row {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 0.6rem 0;
-    border-bottom: 1px solid var(--border);
-  }
-  .setting-row:last-child { border-bottom: none; }
-
-  .setting-row label {
-    font-size: 0.72rem; letter-spacing: 0.08em; color: var(--muted);
-    text-transform: uppercase;
-  }
-
-  .toggle {
-    position: relative; width: 36px; height: 20px;
-    cursor: pointer;
-  }
-  .toggle input { display: none; }
-  .toggle-track {
-    position: absolute; inset: 0;
-    background: var(--border);
-    border-radius: 10px;
-    transition: background 0.2s;
-  }
-  .toggle input:checked + .toggle-track { background: var(--gold); }
-  .toggle-thumb {
-    position: absolute;
-    width: 14px; height: 14px;
-    background: var(--cream);
-    border-radius: 50%;
-    top: 3px; left: 3px;
-    transition: transform 0.2s;
-  }
-  .toggle input:checked ~ .toggle-thumb { transform: translateX(16px); }
-
-  select.mini-select {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    color: var(--cream);
-    font-family: 'DM Mono', monospace;
-    font-size: 0.7rem;
-    padding: 3px 6px;
-    border-radius: 2px;
-    cursor: pointer;
-  }
-
-  /* no camera */
-  .no-camera {
-    position: absolute; inset: 0;
-    display: flex; align-items: center; justify-content: center;
-    flex-direction: column; gap: 0.75rem;
-    color: var(--muted); text-align: center;
-    padding: 2rem;
-  }
-  .no-camera .icon { font-size: 3rem; opacity: 0.4; }
-  .no-camera p { font-size: 0.8rem; line-height: 1.6; }
-
-  .btn-start-cam {
-    padding: 0.6rem 1.2rem;
-    background: var(--gold);
-    color: #0e0c0a;
-    border: none; border-radius: 2px;
-    font-family: 'DM Mono', monospace; font-size: 0.75rem;
-    letter-spacing: 0.1em; cursor: pointer;
-    font-weight: 500;
-  }
-
-  canvas.hidden { display: none; }
-</style>
+    /* Settings Styling */
+    .setting-row { display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid var(--border); }
+    .setting-row:last-child { border-bottom: none; }
+    .setting-row label { font-size: 0.75rem; color: #aaa; }
+    .mini-select { background: var(--surface2); border: 1px solid var(--border); color: var(--cream); padding: 4px 8px; border-radius: 4px; cursor: pointer; }
+    .toggle { position: relative; width: 40px; height: 22px; cursor: pointer; }
+    .toggle input { display: none; }
+    .toggle-track { position: absolute; inset: 0; background: var(--border); border-radius: 12px; transition: 0.2s; }
+    .toggle input:checked + .toggle-track { background: var(--gold); }
+    .toggle-thumb { position: absolute; width: 16px; height: 16px; background: var(--cream); border-radius: 50%; top: 3px; left: 3px; transition: 0.2s; }
+    .toggle input:checked ~ .toggle-thumb { transform: translateX(18px); }
+    .btn-save-setup { width: 100%; padding: 1rem; margin-top: 1.5rem; background: var(--gold); border: none; border-radius: 4px; font-weight: 700; cursor: pointer; text-transform: uppercase; color: #0e0c0a; }
+    
+    canvas.hidden { display: none; }
+  </style>
 </head>
 <body>
 
-<header>
-  <h1>Photo<span>booth</span></h1>
-  <p class="subtitle">Professional Events · No Install</p>
-</header>
-
-<div class="app">
-  <div class="camera-section">
-
-    <div class="viewfinder" id="viewfinder">
-      <div class="corner-br"></div>
-      <div class="corner-tl"></div>
-      <video id="video" autoplay playsinline muted></video>
-      <canvas id="filterCanvas" class="filter-preview hidden"></canvas>
-
-      <div class="shot-counter" id="shotCounter">
-        <div class="shot-dot" id="dot0"></div>
-        <div class="shot-dot" id="dot1"></div>
-        <div class="shot-dot" id="dot2"></div>
-        <div class="shot-dot" id="dot3"></div>
-      </div>
-
-      <div class="countdown-overlay" id="countdownOverlay">
-        <span class="countdown-num" id="countdownNum">3</span>
-      </div>
-
-      <div class="flash-overlay" id="flashOverlay"></div>
-
-      <div class="no-camera" id="noCameraMsg">
-        <span class="icon">📷</span>
-        <p>Izinkan akses kamera<br>untuk memulai sesi foto</p>
-        <button class="btn-start-cam" onclick="startCamera()">Aktifkan Kamera</button>
-      </div>
+<div class="setup-overlay" id="setupOverlay">
+  <div class="setup-card">
+    <h2>Konfigurasi Sesi</h2>
+    <div class="setting-row">
+      <label>Mode Foto</label>
+      <select class="mini-select" id="countSelect" onchange="onModeChange()">
+        <option value="4">4 Foto (Landscape 3:2)</option>
+        <option value="3">3 Foto (Classic 4:3)</option>
+        <option value="2">2 Foto (Portrait 4:5)</option>
+      </select>
     </div>
-
-    <div>
-      <div class="section-label">Filter</div>
-      <div class="filter-bar" id="filterBar"></div>
+    <div class="setting-row">
+      <label>Timer Mundur</label>
+      <select class="mini-select" id="timerSelect">
+        <option value="3">3 detik</option>
+        <option value="5">5 detik</option>
+      </select>
     </div>
-
-    <div class="controls">
-      <button class="btn-capture" id="captureBtn" onclick="startSequence()">
-        ● Mulai Sesi
-      </button>
-      <button class="btn-reset" onclick="resetSession()">↺ Reset</button>
+    <div class="setting-row">
+      <label>Efek Cermin</label>
+      <label class="toggle">
+        <input type="checkbox" id="mirrorToggle" checked onchange="applyMirror()">
+        <div class="toggle-track"></div>
+        <div class="toggle-thumb"></div>
+      </label>
     </div>
-
-    <div>
-      <div class="section-label">Pilihan Tema</div>
-      <div class="frame-grid" id="frameGrid"></div>
-    </div>
-
+    <button class="btn-save-setup" onclick="saveAndStart()">Mulai Sesi Foto ➔</button>
   </div>
+</div>
 
-  <div class="strip-panel">
+<div class="modal-overlay" id="strip2Modal">
+  <div class="modal-card">
+    <h3>Strip 1 Selesai! ✨</h3>
+    <p>Apakah kamu ingin menggunakan foto yang sama untuk diletakkan di strip kedua (kanan), atau kamu ingin mengambil pose yang baru?</p>
+    <div class="modal-btn-group">
+      <button class="btn-modal copy" onclick="chooseSamePhotos()">Gunakan Foto yang Sama</button>
+      <button class="btn-modal retake" onclick="chooseNewPhotos()">Ambil Pose Baru (Strip 2)</button>
+    </div>
+  </div>
+</div>
 
-    <div>
-      <div class="section-label">Preview Strip</div>
-      <div class="strip-wrapper">
-        <div class="strip-placeholder" id="stripPlaceholder">
-          <span class="icon">🎞️</span>
-          <p>Strip akan muncul di sini</p>
+<div class="modal-overlay" id="qrModal">
+  <div class="modal-card" style="max-width: 350px;">
+    <h3>Scan & Simpan 📸</h3>
+    <p style="margin-bottom: 1rem;">Gunakan kamera HP kamu untuk men-scan kode di bawah ini untuk mengunduh foto ke Galeri.</p>
+    
+    <div id="qrcodeCanvas" style="display: flex; flex-direction: column; align-items: center; justify-content: center; margin-bottom: 1.5rem; background: #fff; padding: 1.5rem; border-radius: 8px; min-height: 200px;"></div>
+    
+    <div class="modal-btn-group">
+      <button class="btn-modal retake" onclick="closeQrModal()">Tutup Jendela</button>
+    </div>
+  </div>
+</div>
+
+<div class="app-container" id="mainApp">  
+  <div class="app">
+    <div class="left-panel">
+      
+      <div id="step2-view" class="step-view active">
+        <div class="section-header">
+          <span class="section-label" id="shootLabel">1. Sesi Pemotretan (Strip Kiri)</span>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn-reset-small" onclick="generateDummyPhotos()" title="Isi dengan foto warna solid otomatis">
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+              Dummy
+            </button>
+            <button class="btn-reset-small" onclick="resetPhotos()">
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><polyline points="3 3 3 8 8 8"></polyline></svg>
+              Ulang
+            </button>
+          </div>
         </div>
-        <canvas id="stripCanvas" class="hidden"></canvas>
+        
+        <div class="viewfinder-wrapper">
+          <div class="viewfinder">
+            <video id="video" autoplay playsinline muted></video>
+            <canvas id="filterCanvas" class="filter-preview hidden"></canvas>
+            
+            <div class="mask-container ratio-4-3" id="maskContainer">
+               <div class="mask-cutout"></div>
+            </div>
+            
+            <img id="reviewImg" class="hidden" src="" alt="Review" />
+
+            <div class="filter-floating-menu" id="filterMenu">
+              <button class="filter-fab" id="filterToggleBtn" onclick="toggleFilterMenu()" title="Pilih Filter">
+                 <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+              </button>
+              <div class="filter-options" id="filterOptions">
+                <button class="filter-opt-btn" onclick="toggleFilterMenu()" title="Tutup">
+                  <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="shot-counter">
+              <div class="shot-dot" id="dot0"></div>
+              <div class="shot-dot" id="dot1"></div>
+              <div class="shot-dot" id="dot2"></div>
+              <div class="shot-dot" id="dot3"></div>
+            </div>
+            
+            <div class="countdown-overlay" id="countdownOverlay"><span class="countdown-num" id="countdownNum">3</span></div>
+            <div class="flash-overlay" id="flashOverlay"></div>
+          </div>
+
+          <div class="action-controls">
+            <button class="btn-capture" id="captureBtn" onclick="handleCaptureClick()">● Ambil Foto ke-1</button>
+            <button class="btn-next-step" id="nextStepBtn" onclick="goToStep3()">Lanjut Pilih Tema ➔</button>
+            
+            <div class="review-controls hidden" id="reviewControls">
+              <button class="btn-retake" onclick="retakePhoto()">↺ Ulangi</button>
+              <button class="btn-accept" onclick="acceptPhoto()">Lanjut ➔</button>
+            </div>
+          </div>
+        </div>
       </div>
+
+      <div id="step3-view" class="step-view">
+        <div class="section-header">
+          <span class="section-label">2. Dekorasi Kertas 4R</span>
+          <button class="btn-reset-small" onclick="goToStep2()">
+            ⬅ Kembali Take Foto
+          </button>
+        </div>
+        
+        <div class="strip-tabs">
+          <button id="tab-left" class="strip-tab active" onclick="switchStripSide('left')">Tema Strip Kiri</button>
+          <button id="tab-right" class="strip-tab" onclick="switchStripSide('right')">Tema Strip Kanan</button>
+        </div>
+
+        <div class="frame-grid" id="frameGrid"></div>
+
+        <div id="systemColorPicker" class="color-picker-container hidden">
+          <span class="section-label" style="display:block; margin-bottom: 8px; text-align: center;">Pilih Warna Latar</span>
+          <div class="color-picker" id="colorPickerGrid"></div>
+        </div>
+      </div>
+
     </div>
 
-    <button class="btn-download" id="downloadBtn" onclick="downloadStrip()" disabled>
-      ↓ Unduh Strip
-    </button>
-
-    <div class="settings-card">
-      <div class="section-label" style="margin-bottom:0.25rem">Pengaturan</div>
-
-      <div class="setting-row">
-        <label>Timer</label>
-        <select class="mini-select" id="timerSelect">
-          <option value="3">3 detik</option>
-          <option value="5">5 detik</option>
-          <option value="10">10 detik</option>
-          <option value="0">Tanpa timer</option>
-        </select>
+    <div class="strip-panel">
+      <div class="section-header" style="width: 100%;">
+        <span class="section-label" style="text-align:center; width:100%;">Live Preview (Ukuran 4R)</span>
+      </div>
+      <div class="strip-wrapper">
+        <canvas id="stripCanvas"></canvas>
+      </div>
+      
+      <div class="action-group" id="actionGroupBtn">
+        <button class="btn-icon-action primary" onclick="downloadStrip()" title="Unduh (HD)">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          Unduh
+        </button>
+        <button class="btn-icon-action qr" onclick="generateQrDelivery()" title="Ambil Lewat QR Code">
+          <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+          QR Scan
+        </button>
+        <button class="btn-icon-action" onclick="printStrip()" title="Cetak (Print)">
+          <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+        </button>
       </div>
 
-      <div class="setting-row">
-        <label>Jumlah Foto</label>
-        <select class="mini-select" id="countSelect" onchange="updateDots()">
-          <option value="4">4 foto</option>
-          <option value="3">3 foto</option>
-          <option value="2">2 foto</option>
-        </select>
-      </div>
-
-      <div class="setting-row">
-        <label>Mirror</label>
-        <label class="toggle">
-          <input type="checkbox" id="mirrorToggle" checked onchange="applyMirror()">
-          <div class="toggle-track"></div>
-          <div class="toggle-thumb"></div>
-        </label>
-      </div>
-
-      <div class="setting-row">
-        <label>Tanggal di Strip</label>
-        <label class="toggle">
-          <input type="checkbox" id="dateToggle" checked>
-          <div class="toggle-track"></div>
-          <div class="toggle-thumb"></div>
-        </label>
-      </div>
+      <button class="btn-reset-setup" onclick="resetToSetup()">⚙️ Pengaturan Awal</button>
     </div>
-
   </div>
 </div>
 
@@ -535,413 +369,602 @@ const filterCanvas = document.getElementById('filterCanvas');
 const countdownOverlay = document.getElementById('countdownOverlay');
 const countdownNum = document.getElementById('countdownNum');
 const flashOverlay = document.getElementById('flashOverlay');
+const maskContainer = document.getElementById('maskContainer');
+
 const captureBtn = document.getElementById('captureBtn');
-const downloadBtn = document.getElementById('downloadBtn');
-const stripPlaceholder = document.getElementById('stripPlaceholder');
-const noCameraMsg = document.getElementById('noCameraMsg');
+const nextStepBtn = document.getElementById('nextStepBtn');
+const reviewControls = document.getElementById('reviewControls');
+const reviewImg = document.getElementById('reviewImg');
+const shootLabel = document.getElementById('shootLabel');
+
+const actionGroupBtn = document.getElementById('actionGroupBtn');
+const setupOverlay = document.getElementById('setupOverlay');
+const strip2Modal = document.getElementById('strip2Modal');
+const mainApp = document.getElementById('mainApp');
+const step2View = document.getElementById('step2-view');
+const step3View = document.getElementById('step3-view');
+const systemColorPickerUI = document.getElementById('systemColorPicker');
 
 let stream = null;
-let capturedPhotos = [];
 let currentFilter = 'normal';
-let currentFrame = 'aesthetic';
 let filterAnimFrame = null;
-let isRunning = false;
+const SCALE = 3;
 
-// ── Filters ────────────────────────────────────────────────────────────
-const FILTERS = [
-  { id: 'normal',    label: 'Normal',   icon: '☀️', css: 'none' },
-  { id: 'bw',        label: 'B&W',      icon: '⬛', css: 'grayscale(1)' },
-  { id: 'sepia',     label: 'Sepia',    icon: '🟫', css: 'sepia(0.85)' },
-  { id: 'vivid',     label: 'Vivid',    icon: '🌈', css: 'saturate(1.8) contrast(1.1)' },
-  { id: 'fade',      label: 'Fade',     icon: '🌫️', css: 'contrast(0.8) brightness(1.15) saturate(0.7)' },
-  { id: 'cool',      label: 'Cool',     icon: '🔵', css: 'hue-rotate(200deg) saturate(1.2)' },
-  { id: 'warm',      label: 'Warm',     icon: '🔴', css: 'hue-rotate(-20deg) saturate(1.3) brightness(1.05)' },
-  { id: 'drama',     label: 'Drama',    icon: '🎭', css: 'contrast(1.4) brightness(0.85) saturate(1.2)' },
+// --- STATE PENGATURAN STRIP (KIRI & KANAN) ---
+let capturedPhotosLeft = [];
+let capturedPhotosRight = [];
+let currentStripTarget = 'left'; 
+let currentStep = 0; 
+let tempPhotoUrl = '';
+
+let activeStripSide = 'left'; 
+
+const SYSTEM_COLORS = [
+  { code: '#ffffff', accent: '#333333' },
+  { code: '#1a1a1a', accent: '#f0e8d8' },
+  { code: '#e5d3b3', accent: '#4a3b2c' },
+  { code: '#b3cde5', accent: '#1e293b' },
+  { code: '#e5b3b3', accent: '#4a2c2c' }
 ];
 
+let stripConfigs = {
+  left: { frameId: null, color: SYSTEM_COLORS[0] },
+  right: { frameId: null, color: SYSTEM_COLORS[0] }
+};
+
+const FILTERS = [
+  { id: 'normal', name: 'Normal', icon: '<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>', css: 'none' },
+  { id: 'bw', name: 'B&W', icon: '<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a10 10 0 0 0 0 20z" fill="currentColor"></path></svg>', css: 'grayscale(1)' },
+  { id: 'vivid', name: 'Vivid', icon: '<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="10"></circle><line x1="14.31" y1="8" x2="20.05" y2="17.94"></line><line x1="9.69" y1="8" x2="21.17" y2="8"></line><line x1="7.38" y1="12" x2="13.12" y2="2.06"></line><line x1="9.69" y1="16" x2="3.95" y2="6.06"></line><line x1="14.31" y1="16" x2="2.83" y2="16"></line><line x1="16.62" y1="12" x2="10.88" y2="21.94"></line></svg>', css: 'saturate(1.8) contrast(1.1)' },
+  { id: 'fade', name: 'Fade', icon: '<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"></path></svg>', css: 'contrast(0.8) brightness(1.15) saturate(0.7)' },
+  { id: 'cool', name: 'Cool', icon: '<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path></svg>', css: 'hue-rotate(200deg) saturate(1.2)' }
+];
+
+const ALL_FRAMES = [
+  { id: 'sys_4', count: 4, label: 'Bingkai Sistem', isSystem: true },
+  { id: '4p_1', count: 4, label: 'Minimalist', twibbon: 'https://instaphotoz.vercel.app/4P-style1.png', bg: '#ffffff', accent: '#333' },
+  { id: '4p_2', count: 4, label: 'Vintage', twibbon: 'https://instaphotoz.vercel.app/4P-style2.png', bg: '#f4f0ec', accent: '#5a5245' },
+  { id: 'sys_3', count: 3, label: 'Bingkai Sistem', isSystem: true },
+  { id: '3p_1', count: 3, label: 'Minimalist', twibbon: 'https://instaphotoz.vercel.app/3P-style1.png', bg: '#ffffff', accent: '#333' },
+  { id: '3p_2', count: 3, label: 'Dark Mode', twibbon: 'https://instaphotoz.vercel.app/3P-style2.png', bg: '#1e293b', accent: '#f8fafc' },
+  { id: 'sys_2', count: 2, label: 'Bingkai Sistem', isSystem: true },
+];
+
+// --- KONFIGURASI ABSOLUT LAYOUT 4R (2550 x 3800) ---
+// Termasuk Rasio 3:2 (Mode 4), 4:3 (Mode 3), dan 4:5 (Mode 2)
+const STRIP_LAYOUT = {
+  4: { stripW: 1275, stripH: 3800, padX: 97.5, padTop: 180, gap: 60, photoW: 1080, photoH: 720, footerY: 3450, fontSize: 90 }, // Update ke 3:2
+  3: { stripW: 1275, stripH: 3800, padX: 97.5, padTop: 160, gap: 80, photoW: 1080, photoH: 810, footerY: 3275, fontSize: 90 }, // Update ke 4:3
+  2: { stripW: 1275, stripH: 3800, padX: 97.5, padTop: 250, gap: 150, photoW: 1080, photoH: 1350, footerY: 3500, fontSize: 100 } // Update ke 4:5
+};
+
 function buildFilterBar() {
-  const bar = document.getElementById('filterBar');
+  const container = document.getElementById('filterOptions');
+  const toggleBtn = document.getElementById('filterToggleBtn');
+  const defaultFilter = FILTERS.find(f => f.id === 'normal');
+  toggleBtn.innerHTML = defaultFilter.icon;
+
   FILTERS.forEach(f => {
     const btn = document.createElement('button');
-    btn.className = 'filter-btn' + (f.id === 'normal' ? ' active' : '');
-    btn.dataset.id = f.id;
-    btn.innerHTML = `<div class="filter-thumb">${f.icon}</div><span>${f.label}</span>`;
+    btn.className = 'filter-opt-btn' + (f.id === 'normal' ? ' active' : '');
+    btn.innerHTML = f.icon;
+    btn.title = f.name;
     btn.onclick = () => {
       currentFilter = f.id;
-      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.filter-opt-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
+      toggleBtn.innerHTML = f.icon; 
+      toggleFilterMenu(); 
       applyFilterLoop();
     };
-    bar.appendChild(btn);
+    container.appendChild(btn);
   });
 }
 
-function getFilterCSS(id) {
-  return (FILTERS.find(f => f.id === id) || FILTERS[0]).css;
+function switchStripSide(side) {
+  activeStripSide = side;
+  document.getElementById('tab-left').classList.toggle('active', side === 'left');
+  document.getElementById('tab-right').classList.toggle('active', side === 'right');
+  buildFrameGrid();
+  buildColorPicker();
 }
 
-function applyFilterLoop() {
-  if (!stream) return;
-  const f = getFilterCSS(currentFilter);
-  if (f === 'none') {
-    video.style.filter = 'none';
-    filterCanvas.classList.add('hidden');
-    if (filterAnimFrame) { cancelAnimationFrame(filterAnimFrame); filterAnimFrame = null; }
-    return;
-  }
-  filterCanvas.classList.remove('hidden');
-  video.style.opacity = '0';
+function buildColorPicker() {
+  const grid = document.getElementById('colorPickerGrid');
+  grid.innerHTML = '';
+  const currentConfigColorCode = stripConfigs[activeStripSide].color.code;
 
-  const ctx = filterCanvas.getContext('2d');
-  function loop() {
-    if (!stream) return;
-    filterCanvas.width = video.videoWidth || 640;
-    filterCanvas.height = video.videoHeight || 480;
-    ctx.filter = f;
-    const mirror = document.getElementById('mirrorToggle').checked;
-    ctx.save();
-    if (mirror) { ctx.translate(filterCanvas.width, 0); ctx.scale(-1, 1); }
-    ctx.drawImage(video, 0, 0, filterCanvas.width, filterCanvas.height);
-    ctx.restore();
-    filterAnimFrame = requestAnimationFrame(loop);
-  }
-  if (filterAnimFrame) cancelAnimationFrame(filterAnimFrame);
-  loop();
+  SYSTEM_COLORS.forEach(c => {
+    const btn = document.createElement('div');
+    btn.className = 'color-circle' + (c.code === currentConfigColorCode ? ' active' : '');
+    btn.style.backgroundColor = c.code;
+    btn.onclick = () => {
+      stripConfigs[activeStripSide].color = c;
+      document.querySelectorAll('.color-circle').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderStrip(false);
+    };
+    grid.appendChild(btn);
+  });
 }
 
-// ── Frames ────────────────────────────────────────────────────────────
-const FRAMES = [
-  { 
-    id: 'aesthetic',   
-    label: 'Aesthetic',  
-    bg: '#f4f0ec', 
-    accent: '#5a5245', 
-    font: 'Playfair Display', 
-    radius: 4, 
-    isGradient: false 
-  },
-  { 
-    id: 'retro',      
-    label: 'Retro Film', 
-    bg: '#111111', 
-    accent: '#eab308', 
-    font: 'DM Mono', 
-    radius: 0, 
-    isGradient: false, 
-    isFilm: true 
-  },
-  { 
-    id: 'fun',         
-    label: 'Y2K Fun',    
-    bg: ['#ff9a9e', '#fecfef'], 
-    accent: '#1f2937', 
-    font: 'DM Sans', 
-    radius: 16, 
-    isGradient: true 
-  },
-  { 
-    id: 'sleek',      
-    label: 'Sleek Pro',  
-    bg: '#1e293b', 
-    accent: '#f8fafc', 
-    font: 'DM Sans', 
-    radius: 2, 
-    isGradient: false 
-  },
-];
+function toggleFilterMenu() {
+  document.getElementById('filterOptions').classList.toggle('expanded');
+}
 
 function buildFrameGrid() {
   const grid = document.getElementById('frameGrid');
   grid.innerHTML = '';
-  FRAMES.forEach(fr => {
-    const opt = document.createElement('div');
-    opt.className = 'frame-opt' + (fr.id === 'aesthetic' ? ' active' : '');
-    opt.dataset.id = fr.id;
+  const selectedCount = parseInt(document.getElementById('countSelect').value);
+  const filtered = ALL_FRAMES.filter(f => f.count === selectedCount);
     
-    if (fr.isGradient) {
-      opt.style.background = `linear-gradient(135deg, ${fr.bg[0]}, ${fr.bg[1]})`;
-    } else {
-      opt.style.background = fr.bg;
-    }
+  if (!stripConfigs.left.frameId || !filtered.find(f => f.id === stripConfigs.left.frameId)) {
+     stripConfigs.left.frameId = filtered[0].id;
+  }
+  if (!stripConfigs.right.frameId || !filtered.find(f => f.id === stripConfigs.right.frameId)) {
+     stripConfigs.right.frameId = filtered[0].id;
+  }
 
-    opt.innerHTML = `
-      <div style="display:flex;flex-direction:column;gap:3px;padding:6px;width:100%">
-        ${[0,1,2,3].map(() => `<div style="background:${fr.accent};opacity:0.3;height:10px;border-radius:${fr.radius > 0 ? '2px' : '0'}"></div>`).join('')}
-      </div>
-      <div class="frame-opt-label" style="color:${fr.accent};opacity:0.9;font-weight:bold;text-shadow:0 0 2px rgba(255,255,255,0.5)">${fr.label}</div>
-    `;
+  const activeSideFrameId = stripConfigs[activeStripSide].frameId;
+    
+  filtered.forEach(fr => {
+    const opt = document.createElement('div');
+    opt.className = 'frame-opt' + (fr.id === activeSideFrameId ? ' active' : '');
+    opt.style.background = fr.isSystem ? '#242018' : fr.bg;
+    opt.innerHTML = `<div class="frame-opt-label" style="color:${fr.isSystem ? 'var(--cream)' : fr.accent}">${fr.label}</div>`;
+    
     opt.onclick = () => {
-      currentFrame = fr.id;
+      stripConfigs[activeStripSide].frameId = fr.id;
       document.querySelectorAll('.frame-opt').forEach(o => o.classList.remove('active'));
       opt.classList.add('active');
-      if (capturedPhotos.length > 0) renderStrip();
+      
+      if (fr.isSystem) {
+        systemColorPickerUI.classList.remove('hidden');
+      } else {
+        systemColorPickerUI.classList.add('hidden');
+      }
+      renderStrip(false); 
     };
     grid.appendChild(opt);
   });
+  
+  const activeFrameData = ALL_FRAMES.find(f => f.id === activeSideFrameId);
+  if(activeFrameData && activeFrameData.isSystem) {
+      systemColorPickerUI.classList.remove('hidden');
+  } else {
+      systemColorPickerUI.classList.add('hidden');
+  }
 }
 
-// ── Camera ────────────────────────────────────────────────────────────
+function applyFilterLoop() {
+  if (!stream) return;
+  const f = (FILTERS.find(filter => filter.id === currentFilter)).css;
+  if (f === 'none') {
+    video.style.filter = 'none';
+    filterCanvas.classList.add('hidden');
+    if (filterAnimFrame) cancelAnimationFrame(filterAnimFrame);
+    return;
+  }
+  filterCanvas.classList.remove('hidden');
+  const ctx = filterCanvas.getContext('2d');
+    
+  function loop() {
+    filterCanvas.width = video.videoWidth || 640;
+    filterCanvas.height = video.videoHeight || 480;
+    ctx.filter = f;
+    const m = document.getElementById('mirrorToggle').checked;
+    ctx.save();
+    if (m) { ctx.translate(filterCanvas.width, 0); ctx.scale(-1, 1); }
+    ctx.drawImage(video, 0, 0, filterCanvas.width, filterCanvas.height);
+    ctx.restore();
+    filterAnimFrame = requestAnimationFrame(loop);
+  }
+  loop();
+}
+
 async function startCamera() {
   try {
-    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 960 } }, audio: false });
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 1920 }, height: { ideal: 1440 }, aspectRatio: { ideal: 4/3 } }, audio: false });
     video.srcObject = stream;
-    noCameraMsg.style.display = 'none';
-    video.style.opacity = '1';
-    video.style.filter = 'none';
-    applyMirror();
+    video.play().catch(err => console.log("Auto-play was prevented:", err));
     applyFilterLoop();
-  } catch (e) {
-    noCameraMsg.querySelector('p').textContent = 'Akses kamera ditolak. Izinkan di pengaturan browser.';
-  }
+    updateDots();
+  } catch (e) { alert('Akses kamera ditolak atau perangkat tidak mendeteksi kamera.'); }
 }
 
 function applyMirror() {
+  video.style.transform = document.getElementById('mirrorToggle').checked ? 'scaleX(-1)' : 'scaleX(1)';
+}
+
+function saveAndStart() {
+  setupOverlay.classList.add('hidden');
+  mainApp.classList.add('visible');
+  startCamera();
+  resetPhotos();
+}
+
+function goToStep2() {
+  step3View.classList.remove('active');
+  step2View.classList.add('active');
+  actionGroupBtn.classList.remove('active');
+  renderStrip(true); 
+}
+
+function goToStep3() {
+  step2View.classList.remove('active');
+  step3View.classList.add('active');
+  actionGroupBtn.classList.add('active');
+  renderStrip(false); 
+}
+
+function resetToSetup() {
+  if (stream) { stream.getTracks().forEach(track => track.stop()); stream = null; }
+  resetPhotos();
+  goToStep2(); 
+  mainApp.classList.remove('visible');
+  setupOverlay.classList.remove('hidden');
+}
+
+function onModeChange() {
+  const count = parseInt(document.getElementById('countSelect').value);
+  if (count === 4) {
+    maskContainer.className = 'mask-container ratio-3-2';
+  } else if (count === 2) {
+    maskContainer.className = 'mask-container ratio-4-5';
+  } else {
+    maskContainer.className = 'mask-container ratio-4-3';
+  }
+  resetPhotos();
+  buildFrameGrid();
+  buildColorPicker();
+}
+
+function generateDummyPhotos() {
+  const count = parseInt(document.getElementById('countSelect').value);
+  const layout = STRIP_LAYOUT[count];
+  let dummyArr = [];
+  const dummyColors = ['#ff6b6b', '#4ecdc4', '#ffe66d', '#1a535c']; 
+  
+  const tempCanvas = document.createElement('canvas');
+  tempCanvas.width = layout.photoW; 
+  tempCanvas.height = layout.photoH;
+  const ctx = tempCanvas.getContext('2d');
+  
+  for(let i=0; i<count; i++) {
+     ctx.fillStyle = dummyColors[i % dummyColors.length];
+     ctx.fillRect(0, 0, layout.photoW, layout.photoH);
+     
+     ctx.fillStyle = '#ffffff';
+     ctx.font = 'bold 350px sans-serif';
+     ctx.textAlign = 'center';
+     ctx.textBaseline = 'middle';
+     ctx.fillText((i+1).toString(), layout.photoW / 2, layout.photoH / 2);
+     
+     dummyArr.push(tempCanvas.toDataURL('image/jpeg', 0.8));
+  }
+  
+  capturedPhotosLeft = dummyArr;
+  capturedPhotosRight = [...dummyArr];
+  
+  captureBtn.classList.add('hidden');
+  nextStepBtn.style.display = 'block';
+  reviewImg.classList.add('hidden');
+  reviewControls.classList.add('hidden');
+  
+  goToStep3();
+}
+
+async function handleCaptureClick() {
+  const count = parseInt(document.getElementById('countSelect').value);
+  if (currentStep >= count) return;
+  const layout = STRIP_LAYOUT[count];
+    
+  captureBtn.classList.add('hidden');
+  const timer = parseInt(document.getElementById('timerSelect').value);
+  if (timer > 0) await countdown(timer);
+    
+  flashOverlay.classList.add('flash');
+  setTimeout(() => flashOverlay.classList.remove('flash'), 150);
+    
+  const targetW = layout.photoW;
+  const targetH = layout.photoH;
+  captureCanvas.width = targetW;
+  captureCanvas.height = targetH;
+    
+  const ctx = captureCanvas.getContext('2d');
+  
+  // Ambil gambar aslinya tanpa filter untuk mempermudah crop
+  ctx.filter = 'none';
+  
+  const sourceW = video.videoWidth;
+  const sourceH = video.videoHeight;
+  const sourceAspect = sourceW / sourceH;
+  const targetAspect = targetW / targetH;
+    
+  let sx, sy, sWidth, sHeight;
+  if (sourceAspect > targetAspect) {
+    sHeight = sourceH; sWidth = sourceH * targetAspect;
+    sx = (sourceW - sWidth) / 2; sy = 0;
+  } else {
+    sWidth = sourceW; sHeight = sourceW / targetAspect;
+    sx = 0; sy = (sourceH - sHeight) / 2;
+  }
   const m = document.getElementById('mirrorToggle').checked;
-  video.style.transform = m ? 'scaleX(-1)' : 'scaleX(1)';
+  ctx.save();
+  if (m) { ctx.translate(targetW, 0); ctx.scale(-1, 1); }
+    
+  ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, targetW, targetH);
+  ctx.restore();
+    
+  tempPhotoUrl = captureCanvas.toDataURL('image/jpeg', 1.0);
+  
+  // Pratinjau di layarnya harus dikasih efek filter manual lewat CSS
+  const activeFilterStyle = (FILTERS.find(filter => filter.id === currentFilter)).css;
+  reviewImg.style.filter = activeFilterStyle;
+  reviewImg.src = tempPhotoUrl;
+  
+  reviewImg.classList.remove('hidden');
+  reviewControls.classList.remove('hidden');
 }
 
-// ── Capture ────────────────────────────────────────────────────────────
-function updateDots() {
-  const count = parseInt(document.getElementById('countSelect').value);
-  for (let i = 0; i < 4; i++) {
-    const dot = document.getElementById('dot' + i);
-    if (i < count) { dot.style.display = 'block'; dot.classList.remove('taken'); }
-    else dot.style.display = 'none';
-  }
+function retakePhoto() {
+  reviewImg.classList.add('hidden');
+  reviewControls.classList.add('hidden');
+  captureBtn.classList.remove('hidden');
 }
 
-async function startSequence() {
-  if (!stream) { alert('Aktifkan kamera terlebih dahulu!'); return; }
-  if (isRunning) return;
-  isRunning = true;
-  captureBtn.disabled = true;
-  capturedPhotos = [];
-  updateDots();
-
-  const count = parseInt(document.getElementById('countSelect').value);
-  const timerSec = parseInt(document.getElementById('timerSelect').value);
-
-  for (let i = 0; i < count; i++) {
-    if (timerSec > 0) await countdown(timerSec);
-    await captureOne(i);
-    if (i < count - 1) await sleep(800);
+function acceptPhoto() {
+  if(currentStripTarget === 'left') {
+      capturedPhotosLeft.push(tempPhotoUrl);
+  } else {
+      capturedPhotosRight.push(tempPhotoUrl);
   }
+  
+  document.getElementById('dot' + currentStep).classList.add('taken');
+  currentStep++;
+  
+  reviewImg.classList.add('hidden');
+  reviewControls.classList.add('hidden');
+    
+  const count = parseInt(document.getElementById('countSelect').value);
+  if (currentStep >= count) {
+    captureBtn.classList.add('hidden');
+    
+    if (currentStripTarget === 'left') {
+        strip2Modal.classList.add('active');
+    } else {
+        nextStepBtn.style.display = 'block';
+        goToStep3();
+    }
+  } else {
+    captureBtn.classList.remove('hidden');
+    let stripLabel = currentStripTarget === 'right' ? '(Strip Kanan)' : '';
+    captureBtn.textContent = `● Ambil Foto ke-${currentStep + 1} ${stripLabel}`;
+  }
+  renderStrip(true); 
+}
 
-  renderStrip();
-  captureBtn.disabled = false;
-  isRunning = false;
+function chooseSamePhotos() {
+  capturedPhotosRight = [...capturedPhotosLeft]; 
+  strip2Modal.classList.remove('active');
+  nextStepBtn.style.display = 'block';
+  goToStep3();
+}
+
+function chooseNewPhotos() {
+  currentStripTarget = 'right';
+  currentStep = 0;
+  updateDots(); 
+  
+  shootLabel.textContent = "1. Sesi Pemotretan (Strip Kanan)";
+  strip2Modal.classList.remove('active');
+  
+  captureBtn.classList.remove('hidden');
+  captureBtn.textContent = `● Ambil Foto ke-1 (Strip Kanan)`;
 }
 
 function countdown(sec) {
   return new Promise(res => {
     countdownOverlay.classList.add('active');
-    let n = sec;
-    countdownNum.textContent = n;
-    countdownNum.style.animation = 'none';
-    void countdownNum.offsetWidth;
-    countdownNum.style.animation = '';
-
+    let n = sec; countdownNum.textContent = n;
     const iv = setInterval(() => {
-      n--;
-      if (n <= 0) {
-        clearInterval(iv);
-        countdownOverlay.classList.remove('active');
-        res();
-      } else {
-        countdownNum.textContent = n;
-        countdownNum.style.animation = 'none';
-        void countdownNum.offsetWidth;
-        countdownNum.style.animation = 'popIn 0.3s ease';
-      }
+      n--; countdownNum.textContent = n;
+      if (n <= 0) { clearInterval(iv); countdownOverlay.classList.remove('active'); res(); }
     }, 1000);
   });
 }
 
-function flash() {
-  return new Promise(res => {
-    flashOverlay.classList.add('flash');
-    setTimeout(() => { flashOverlay.classList.remove('flash'); res(); }, 150);
-  });
-}
-
-async function captureOne(index) {
-  await flash();
-  const w = video.videoWidth || 640;
-  const h = video.videoHeight || 480;
-  captureCanvas.width = w;
-  captureCanvas.height = h;
-  const ctx = captureCanvas.getContext('2d');
-  const f = getFilterCSS(currentFilter);
-  ctx.filter = f === 'none' ? 'none' : f;
-  const mirror = document.getElementById('mirrorToggle').checked;
-  ctx.save();
-  if (mirror) { ctx.translate(w, 0); ctx.scale(-1, 1); }
-  ctx.drawImage(video, 0, 0, w, h);
-  ctx.restore();
-  const dataUrl = captureCanvas.toDataURL('image/jpeg', 0.92);
-  capturedPhotos.push(dataUrl);
-  document.getElementById('dot' + index).classList.add('taken');
-}
-
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-
-// ── Strip Rendering ────────────────────────────────────────────────────
-async function renderStrip() {
-  const count = capturedPhotos.length;
-  if (count === 0) return;
-
-  if (!currentFrame) currentFrame = 'aesthetic';
-  const frame = FRAMES.find(f => f.id === currentFrame);
-  
-  const PAD = (frame.isFilm) ? 36 : 28; 
-  const GAP = 12;
-  const PHOTO_W = 320;
-  const PHOTO_H = Math.round(PHOTO_W * 3/4);
-  const FOOTER = 60;
-
-  const totalW = PHOTO_W + PAD * 2;
-  const totalH = PAD + count * PHOTO_H + (count - 1) * GAP + GAP + FOOTER + PAD;
-
-  stripCanvas.width = totalW;
-  stripCanvas.height = totalH;
+// --- LOGIKA RENDER ABSOLUT 2550 x 3800 DENGAN FILTER FIX ---
+async function renderStrip(isRaw = false) {
+  const count = parseInt(document.getElementById('countSelect').value);
+  const layout = STRIP_LAYOUT[count];
+    
+  stripCanvas.width = 2550; 
+  stripCanvas.height = 3800;
   const ctx = stripCanvas.getContext('2d');
 
-  // 1. Gambar Background (Gradient atau Solid)
-  if (frame.isGradient) {
-    const grad = ctx.createLinearGradient(0, 0, totalW, totalH);
-    grad.addColorStop(0, frame.bg[0]);
-    grad.addColorStop(1, frame.bg[1]);
-    ctx.fillStyle = grad;
-  } else {
-    ctx.fillStyle = frame.bg;
-  }
-  ctx.fillRect(0, 0, totalW, totalH);
+  const loadImg = src => new Promise(r => { const i = new Image(); i.onload = () => r(i); i.src = src; });
+  
+  let imgsLeft = [];
+  let imgsRight = [];
+  if (capturedPhotosLeft.length > 0) imgsLeft = await Promise.all(capturedPhotosLeft.map(loadImg));
+  if (capturedPhotosRight.length > 0) imgsRight = await Promise.all(capturedPhotosRight.map(loadImg));
 
-  // 2. Efek Spesial: Lubang Roll Film
-  if (frame.isFilm) {
-    ctx.fillStyle = '#ffffff';
-    for(let y = 15; y < totalH; y += 45) {
-      ctx.fillRect(8, y, 10, 25);
-      ctx.fillRect(totalW - 18, y, 10, 25);
+  async function drawHalfStrip(sideKey, offsetX, imgsArray) {
+    const config = stripConfigs[sideKey];
+    const frame = ALL_FRAMES.find(f => f.id === config.frameId) || ALL_FRAMES[0];
+    const isSystem = frame.isSystem;
+
+    ctx.fillStyle = isRaw ? '#ffffff' : (isSystem ? config.color.code : frame.bg); 
+    ctx.fillRect(offsetX, 0, layout.stripW, layout.stripH);
+
+    imgsArray.forEach((img, i) => {
+      if (i >= count) return;
+      const y = layout.padTop + i * (layout.photoH + layout.gap);
+      
+      ctx.save();
+      if (!isRaw) {
+        const filterStyle = (FILTERS.find(filter => filter.id === currentFilter)).css;
+        ctx.filter = filterStyle === 'none' ? 'none' : filterStyle;
+      }
+      ctx.drawImage(img, offsetX + layout.padX, y, layout.photoW, layout.photoH);
+      ctx.restore(); 
+    });
+
+    if (!isRaw) {
+      if (!isSystem && frame.twibbon) {
+        try {
+          const tw = await new Promise((resolve, reject) => { 
+            const i = new Image(); i.crossOrigin = "anonymous"; 
+            i.onload = () => resolve(i); i.onerror = () => reject(); i.src = frame.twibbon; 
+          });
+          ctx.drawImage(tw, offsetX, 0, layout.stripW, layout.stripH);
+        } catch(e) {
+          drawSystemFooterText(ctx, offsetX, layout, isSystem ? config.color.accent : frame.accent);
+        }
+      } else {
+        drawSystemFooterText(ctx, offsetX, layout, isSystem ? config.color.accent : frame.accent);
+      }
     }
   }
 
-  // 3. Gambar Foto
-  const imgs = await Promise.all(capturedPhotos.map(src => loadImg(src)));
-  imgs.forEach((img, i) => {
-    const y = PAD + i * (PHOTO_H + GAP);
-    
-    const aspect = img.naturalWidth / img.naturalHeight;
-    const targetAspect = PHOTO_W / PHOTO_H;
-    let sx, sy, sw, sh;
-    if (aspect > targetAspect) {
-      sh = img.naturalHeight; sw = sh * targetAspect;
-      sx = (img.naturalWidth - sw) / 2; sy = 0;
-    } else {
-      sw = img.naturalWidth; sh = sw / targetAspect;
-      sx = 0; sy = (img.naturalHeight - sh) / 2;
-    }
+  await drawHalfStrip('left', 0, imgsLeft);
+  await drawHalfStrip('right', layout.stripW, imgsRight);
 
-    // Shadow & Bingkai untuk foto
-    ctx.save();
-    ctx.shadowColor = 'rgba(0,0,0,0.15)';
-    ctx.shadowBlur = 10;
-    ctx.shadowOffsetY = 4;
-    
-    // Path untuk Clip
-    ctx.beginPath();
-    if (ctx.roundRect) {
-      ctx.roundRect(PAD, y, PHOTO_W, PHOTO_H, frame.radius);
-    } else {
-      ctx.rect(PAD, y, PHOTO_W, PHOTO_H); 
-    }
-    
-    // Fill dasar agar shadow terlihat
-    ctx.fillStyle = '#ffffff';
-    ctx.fill();
-    ctx.shadowColor = 'transparent'; 
-    
-    ctx.clip(); 
-    ctx.drawImage(img, sx, sy, sw, sh, PAD, y, PHOTO_W, PHOTO_H);
-    ctx.restore();
-    
-    // Garis luar tipis jika tema bukan dark/retro
-    if (!frame.isFilm && !frame.isGradient) {
-        ctx.strokeStyle = 'rgba(0,0,0,0.05)';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(PAD, y, PHOTO_W, PHOTO_H);
-    }
-  });
+  ctx.beginPath();
+  ctx.moveTo(layout.stripW, 0);
+  ctx.lineTo(layout.stripW, layout.stripH);
+  ctx.strokeStyle = "rgba(0, 0, 0, 0.05)";
+  ctx.lineWidth = 3;
+  ctx.stroke();
+}
 
-  // 4. Footer & Branding Text
-  const footerY = PAD + count * PHOTO_H + (count - 1) * GAP + GAP;
-
-  // Tanggal
-  if (document.getElementById('dateToggle').checked) {
-    const dateStr = new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
-    ctx.fillStyle = frame.accent;
-    ctx.globalAlpha = 0.7;
-    ctx.font = `500 12px "DM Mono", monospace`;
+function drawSystemFooterText(ctx, offsetX, layout, textColor) {
+    ctx.fillStyle = textColor;
+    ctx.font = `italic bold ${layout.fontSize}px "Playfair Display", serif`;
     ctx.textAlign = 'center';
-    ctx.fillText(dateStr.toUpperCase(), totalW / 2, footerY + 20);
-    ctx.globalAlpha = 1;
-  }
-
-  // Nama Event / Brand
-  ctx.fillStyle = frame.accent;
-  if (frame.id === 'retro') {
-      ctx.font = `bold 22px "${frame.font}", monospace`;
-      ctx.fillText('PHOTOMAT', totalW / 2, footerY + 45);
-  } else if (frame.id === 'fun') {
-      ctx.font = `bold 24px "${frame.font}", sans-serif`;
-      ctx.fillText('GOOD VIBES ONLY ✦', totalW / 2, footerY + 45);
-  } else {
-      ctx.font = `italic bold 22px "${frame.font}", serif`;
-      ctx.fillText('Special Moments', totalW / 2, footerY + 45);
-  }
-
-  // Tampilkan Hasil
-  stripPlaceholder.style.display = 'none';
-  stripCanvas.classList.remove('hidden');
-  downloadBtn.disabled = false;
+    ctx.fillText('Special Moments', offsetX + (layout.stripW / 2), layout.footerY);
 }
 
-function loadImg(src) {
-  return new Promise((res, rej) => {
-    const img = new Image();
-    img.onload = () => res(img);
-    img.onerror = rej;
-    img.src = src;
-  });
+function updateDots() {
+  const count = parseInt(document.getElementById('countSelect').value);
+  for (let i = 0; i < 4; i++) {
+    const dot = document.getElementById('dot' + i);
+    dot.style.display = i < count ? 'block' : 'none';
+    if (i >= currentStep) dot.classList.remove('taken');
+  }
 }
 
-// ── Download ────────────────────────────────────────────────────────────
 function downloadStrip() {
-  const dateStr = new Date().toISOString().slice(0, 10);
-  const a = document.createElement('a');
-  a.download = `photobooth-${dateStr}.jpg`;
-  a.href = stripCanvas.toDataURL('image/jpeg', 0.95);
+  const a = document.createElement('a'); a.download = `photobooth-4R-${Date.now()}.jpg`;
+  a.href = stripCanvas.toDataURL('image/jpeg', 1.0); 
   a.click();
 }
 
-// ── Reset ────────────────────────────────────────────────────────────
-function resetSession() {
-  capturedPhotos = [];
-  updateDots();
-  stripCanvas.classList.add('hidden');
-  stripPlaceholder.style.display = 'flex';
-  downloadBtn.disabled = true;
-  captureBtn.disabled = false;
-  isRunning = false;
+function printStrip() {
+  const dataUrl = stripCanvas.toDataURL('image/jpeg', 1.0);
+  let win = window.open('', '_blank');
+  win.document.write(`
+      <html><head><title>Print Photo 4R</title></head>
+      <body style="margin:0;display:flex;justify-content:center;align-items:center;height:100vh;background:#fff;">
+          <img src="${dataUrl}" style="height:100%;max-width:100%;object-fit:contain;" onload="window.print();window.close();" />
+      </body></html>
+  `);
+  win.document.close();
 }
 
-// ── Init ────────────────────────────────────────────────────────────
-buildFilterBar();
-buildFrameGrid();
-updateDots();
+// --- LOGIKA GENERATE QR DELIVERY (PENYIMPANAN GRATIS CLOUD IMGBB - FIX BLOB) ---
+// --- LOGIKA GENERATE QR DELIVERY (MENGGUNAKAN CLOUDINARY - ANTI BLOKIR) ---
+function generateQrDelivery() {
+  const qrModal = document.getElementById('qrModal');
+  const qrCanvasContainer = document.getElementById('qrcodeCanvas');
+  
+  // Tampilkan status loading
+  qrCanvasContainer.innerHTML = "<div style='color:#333; font-size:0.9rem; font-weight:600; text-align:center;'>🚀 Mengunggah Foto HD...<br><small style='font-weight:normal; color:#666;'>Mohon tunggu sebentar</small></div>";
+  qrModal.classList.add('active');
 
-// Auto-start camera
-startCamera();
+  // SILAKAN ISI SESUAI AKUN CLOUDINARY ANDA:
+  const CLOUD_NAME = "dwzrcwwgt"; 
+  const UPLOAD_PRESET = "bw_default"; 
+
+  // Konversi kanvas 4R menjadi File Binary (Blob) asli agar ringan diunggah
+  stripCanvas.toBlob(async (blob) => {
+    try {
+      const formData = new FormData();
+      formData.append("file", blob);
+      formData.append("upload_preset", UPLOAD_PRESET);
+
+      // Unggah langsung ke API resmi Cloudinary
+      const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+        method: 'POST',
+        body: formData
+      });
+
+      const resData = await response.json();
+
+      if (resData.secure_url) {
+        // secure_url adalah tautan gambar HTTPS resmi yang bebas dari blokir
+        const imageUrl = resData.secure_url; 
+        qrCanvasContainer.innerHTML = ""; // Bersihkan loading
+
+        // Generate QR Code dengan tingkat kerapatan Medium (M) agar HP lama pun mudah scan
+        const qrWrapper = document.createElement('div');
+        new QRCode(qrWrapper, {
+          text: imageUrl,
+          width: 180,
+          height: 180,
+          colorDark: "#0e0c0a",
+          colorLight: "#ffffff",
+          correctLevel: QRCode.CorrectLevel.M 
+        });
+        
+        const hint = document.createElement('div');
+        hint.style.textAlign = "center";
+        hint.style.marginTop = "15px";
+        hint.style.fontSize = "0.85rem";
+        hint.style.color = "#333";
+        hint.style.fontWeight = "bold";
+        hint.innerHTML = `🔗 Scan untuk menyimpan!<br><a href="${imageUrl}" target="_blank" style="color: #c9a84c; font-size: 0.75rem; text-decoration: underline; margin-top: 8px; display: inline-block; font-weight: normal;">Test Buka Link di PC</a>`;
+        
+        qrCanvasContainer.appendChild(qrWrapper);
+        qrCanvasContainer.appendChild(hint);
+
+      } else {
+        throw new Error(resData.error.message || "Gagal mengunggah ke Cloudinary.");
+      }
+    } catch (error) {
+      console.error("Detail Error API:", error);
+      qrCanvasContainer.innerHTML = `<div style='color:#ff4a4a; font-size:0.85rem; font-weight:600; text-align:center;'>Gagal Mengunggah 😢<br><small style='color:#333; font-weight:normal;'>${error.message}</small></div>`;
+    }
+  }, 'image/jpeg', 0.85); 
+}
+
+
+function closeQrModal() {
+  document.getElementById('qrModal').classList.remove('active');
+}
+
+function resetPhotos() {
+  capturedPhotosLeft = []; 
+  capturedPhotosRight = [];
+  currentStripTarget = 'left';
+  currentStep = 0; 
+  tempPhotoUrl = '';
+  shootLabel.textContent = "1. Sesi Pemotretan (Strip Kiri)";
+  
+  updateDots();
+  reviewImg.classList.add('hidden');
+  reviewControls.classList.add('hidden');
+  
+  captureBtn.classList.remove('hidden');
+  nextStepBtn.style.display = 'none';
+  captureBtn.textContent = "● Ambil Foto ke-1";
+  renderStrip(true);
+}
+
+// Inisialisasi Startup
+buildFilterBar();
+onModeChange();
 </script>
 </body>
 </html>
