@@ -280,7 +280,7 @@
       <label>Mode Foto</label>
       <select class="mini-select" id="countSelect" onchange="onModeChange()">
         <option value="4">4 Foto (Landscape 3:2)</option>
-        <option value="3">3 Foto (Classic 4:3)</option>
+        <option value="3">3 Foto (Landscape 4:3)</option>
         <option value="2">2 Foto (Portrait 4:5)</option>
       </select>
     </div>
@@ -740,55 +740,76 @@ async function handleCaptureClick() {
   const count = parseInt(document.getElementById('countSelect').value);
   if (currentStep >= count) return;
   const layout = STRIP_LAYOUT[count];
-    
+
   captureBtn.classList.add('hidden');
   const timer = parseInt(document.getElementById('timerSelect').value);
   if (timer > 0) await countdown(timer);
-    
+
   flashOverlay.classList.add('flash');
   setTimeout(() => flashOverlay.classList.remove('flash'), 150);
-    
+
   const targetW = layout.photoW;
   const targetH = layout.photoH;
   captureCanvas.width = targetW;
   captureCanvas.height = targetH;
-    
+
   const ctx = captureCanvas.getContext('2d');
-  
   // Ambil gambar aslinya tanpa filter untuk mempermudah crop
   ctx.filter = 'none';
-  
+
   const sourceW = video.videoWidth;
   const sourceH = video.videoHeight;
-  const sourceAspect = sourceW / sourceH;
-  const targetAspect = targetW / targetH;
-    
-  let sx, sy, sWidth, sHeight;
-  if (sourceAspect > targetAspect) {
-    sHeight = sourceH; sWidth = sourceH * targetAspect;
-    sx = (sourceW - sWidth) / 2; sy = 0;
-  } else {
-    sWidth = sourceW; sHeight = sourceW / targetAspect;
-    sx = 0; sy = (sourceH - sHeight) / 2;
-  }
+  
+  if (!sourceW || !sourceH) return; // Safeguard jika video belum ter-load
+
+  // --- MULAI PERBAIKAN WYSIWYG ---
+  const vRect = video.getBoundingClientRect();
+  const maskCutout = document.querySelector('.mask-cutout');
+  const mRect = maskCutout.getBoundingClientRect();
+
+  // 1. Hitung skala video aktual yang ditampilkan oleh object-fit: cover
+  const scale = Math.max(vRect.width / sourceW, vRect.height / sourceH);
+  const renderedW = sourceW * scale;
+  const renderedH = sourceH * scale;
+
+  // 2. Hitung offset video yang "terpotong" (hidden overflow) oleh container viewfinder
+  const offsetX = (vRect.width - renderedW) / 2;
+  const offsetY = (vRect.height - renderedH) / 2;
+
+  // 3. Petakan koordinat kotak mask ke koordinat video yang sedang tayang
+  let maskX = (mRect.left - vRect.left) - offsetX;
+  let maskY = (mRect.top - vRect.top) - offsetY;
+
   const m = document.getElementById('mirrorToggle').checked;
+  if (m) {
+    // 4. Jika cermin aktif, koordinat X asli dari sumber video harus dibalik letaknya
+    maskX = renderedW - maskX - mRect.width;
+  }
+
+  // 5. Konversi koordinat layar balik ke ukuran piksel asli dari resolusi kamera
+  const sx = maskX / scale;
+  const sy = maskY / scale;
+  const sWidth = mRect.width / scale;
+  const sHeight = mRect.height / scale;
+  // --- AKHIR PERBAIKAN ---
+
   ctx.save();
   if (m) { ctx.translate(targetW, 0); ctx.scale(-1, 1); }
-    
+
+  // Potong gambar menggunakan koordinat yang 100% presisi dengan UI
   ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, targetW, targetH);
   ctx.restore();
-    
+
   tempPhotoUrl = captureCanvas.toDataURL('image/jpeg', 1.0);
-  
+
   // Pratinjau di layarnya harus dikasih efek filter manual lewat CSS
   const activeFilterStyle = (FILTERS.find(filter => filter.id === currentFilter)).css;
   reviewImg.style.filter = activeFilterStyle;
   reviewImg.src = tempPhotoUrl;
-  
+
   reviewImg.classList.remove('hidden');
   reviewControls.classList.remove('hidden');
 }
-
 function retakePhoto() {
   reviewImg.classList.add('hidden');
   reviewControls.classList.add('hidden');
