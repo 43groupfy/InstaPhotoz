@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <!-- Background Base / PWA Icon Shape -->
+  <rect width="512" height="512" rx="112" fill="#0e0c0a" />
+
+  <!-- Camera Body -->
+  <rect x="106" y="160" width="300" height="200" rx="40" fill="#1a1714" stroke="#c9a84c" stroke-width="24" />
+
+  <!-- Top Shutter/Flash Area -->
+  <path d="M 186 160 L 216 112 L 296 112 L 326 160" fill="#1a1714" stroke="#c9a84c" stroke-width="24" stroke-linejoin="round" />
+
+  <!-- Lens Outer -->
+  <circle cx="256" cy="260" r="60" fill="#0e0c0a" stroke="#c9a84c" stroke-width="24" />
+
+  <!-- Lens Inner Reflection -->
+  <circle cx="256" cy="260" r="20" fill="#f0e8d8" />
+
+  <!-- Sensor / Flash Dot -->
+  <circle cx="350" cy="200" r="12" fill="#f0e8d8" />
+
+  <!-- Decorative Sparkle (Pro/Premium feel) -->
+  <path d="M 390 90 Q 390 120 420 120 Q 390 120 390 150 Q 390 120 360 120 Q 390 120 390 90 Z" fill="#e8c97a" />
+  
+  <!-- Mini Sparkle -->
+  <path d="M 110 100 Q 110 115 125 115 Q 110 115 110 130 Q 110 115 95 115 Q 110 115 110 100 Z" fill="#c9a84c" />
+</svg>
