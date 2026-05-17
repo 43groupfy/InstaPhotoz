@@ -1,0 +1,22 @@
+{
+  "name": "Photobooth Pro HD",
+  "short_name": "Photobooth",
+  "description": "Aplikasi Photobooth Interaktif",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0e0c0a",
+  "theme_color": "#c9a84c",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "logo.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "logo.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ]
+}
