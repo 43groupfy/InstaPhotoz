@@ -3,6 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- PWA Meta Tags -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#c9a84c">
+  <link rel="apple-touch-icon" href="logo.png">
+  <link rel="icon" href="logo.png" sizes="any">
+  <link rel="icon" href="logo.png" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="logo.png">
   <title>✦ PHOTOBOOTH PRO HD ✦</title>
   
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -1068,6 +1075,18 @@ function resetPhotos() {
 // Inisialisasi Startup
 buildFilterBar();
 onModeChange();
+
+// PWA Service Worker Registration
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js')
+        .then(registration => {
+          console.log('ServiceWorker terdaftar dengan sukses:', registration.scope);
+        })
+        .catch(error => {
+          console.log('Registrasi ServiceWorker gagal:', error);
+        });
+    });
+  }
 </script>
 </body>
-</html>
