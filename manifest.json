@@ -1,22 +1,20 @@
 {
   "name": "Photobooth Pro HD",
   "short_name": "Photobooth",
-  "description": "Aplikasi Photobooth Interaktif",
+  "description": "Aplikasi photobooth profesional untuk cetak foto 4R dengan berbagai tema dan filter.",
   "start_url": "./index.html",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#0e0c0a",
   "theme_color": "#c9a84c",
-  "orientation": "portrait",
   "icons": [
     {
-      "src": "logo.png",
-      "type": "image/png",
-      "sizes": "192x192"
-    },
-    {
-      "src": "logo.png",
-      "type": "image/png",
-      "sizes": "512x512"
+      "src": "logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     }
-  ]
+  ],
+  "categories": ["photo", "utilities"],
+  "lang": "id"
 }
