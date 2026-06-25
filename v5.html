@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Photobooth Pro</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --bg: #0e0c0a;
+  --gold: #c9a84c;
+  --text: #f0e8d8;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+}
+
+/* ===== LAYOUT ===== */
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* ===== PROGRESS ===== */
+.progress {
+  display: flex;
+  justify-content: space-around;
+  padding: 10px;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.progress span.active {
+  color: var(--gold);
+  font-weight: bold;
+}
+
+/* ===== CAMERA ===== */
+.viewfinder {
+  flex: 1;
+  background: black;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
+
+video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+
+/* ===== COUNTDOWN ===== */
+.countdown {
+  position: absolute;
+  font-size: 80px;
+  color: var(--gold);
+}
+
+/* ===== FILTER BAR ===== */
+.filter-bar {
+  display: flex;
+  overflow-x: auto;
+  gap: 10px;
+  padding: 10px;
+}
+
+.filter-bar button {
+  padding: 8px 12px;
+  border-radius: 20px;
+  border: none;
+  background: #222;
+  color: white;
+}
+
+/* ===== ACTION ===== */
+.action {
+  padding: 15px;
+  position: sticky;
+  bottom: 0;
+  background: var(--bg);
+}
+
+.btn {
+  width: 100%;
+  padding: 15px;
+  border-radius: 999px;
+  border: none;
+  font-weight: bold;
+  background: linear-gradient(135deg, #c9a84c, #e8c97a);
+  color: black;
+  font-size: 16px;
+}
+
+/* ===== REVIEW ===== */
+.review {
+  position: fixed;
+  inset: 0;
+  background: black;
+  display: none;
+  flex-direction: column;
+}
+
+.review img {
+  flex: 1;
+  object-fit: contain;
+}
+
+.review-actions {
+  display: flex;
+}
+
+.review-actions button {
+  flex: 1;
+  padding: 15px;
+  border: none;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+  <!-- STEP -->
+  <div class="progress">
+    <span class="active">1. Foto</span>
+    <span>2. Tema</span>
+    <span>3. Download</span>
+  </div>
+
+  <!-- CAMERA -->
+  <div class="viewfinder">
+    <video id="video" autoplay></video>
+    <div class="countdown" id="countdown"></div>
+  </div>
+
+  <!-- FILTER -->
+  <div class="filter-bar">
+    <button>Normal</button>
+    <button>Warm</button>
+    <button>Vintage</button>
+  </div>
+
+  <!-- ACTION -->
+  <div class="action">
+    <button class="btn" onclick="takePhoto()">Ambil Foto</button>
+  </div>
+
+</div>
+
+<!-- REVIEW -->
+<div class="review" id="review">
+  <img id="photoPreview">
+  <div class="review-actions">
+    <button onclick="retake()">Ulangi</button>
+    <button onclick="accept()">Gunakan</button>
+  </div>
+</div>
+
+<script>
+
+/* ===== CAMERA INIT ===== */
+const video = document.getElementById('video');
+
+navigator.mediaDevices.getUserMedia({ video: true })
+.then(stream => video.srcObject = stream);
+
+/* ===== TAKE PHOTO ===== */
+function takePhoto() {
+  const countdown = document.getElementById("countdown");
+  let time = 3;
+
+  countdown.innerText = time;
+
+  let interval = setInterval(() => {
+    time--;
+    countdown.innerText = time;
+
+    if(time === 0){
+      clearInterval(interval);
+      capture();
+      countdown.innerText = "";
+    }
+  }, 1000);
+}
+
+function capture(){
+  const canvas = document.createElement("canvas");
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(video, 0, 0);
+
+  const img = canvas.toDataURL("image/png");
+
+  showReview(img);
+}
+
+/* ===== REVIEW ===== */
+function showReview(src){
+  document.getElementById("photoPreview").src = src;
+  document.getElementById("review").style.display = "flex";
+}
+
+function retake(){
+  document.getElementById("review").style.display = "none";
+}
+
+function accept(){
+  alert("Next step (pilih tema)");
+}
+
+</script>
+
+</body>
+</html>
