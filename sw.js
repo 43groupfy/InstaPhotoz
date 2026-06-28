@@ -1,5 +1,5 @@
 // sw.js — Service Worker untuk Photobooth Pro HD PWA
-const CACHE_NAME = 'photobooth-v2';
+const CACHE_NAME = 'photobooth-v2l';
 
 // File-file inti yang di-cache saat install
 const PRECACHE_URLS = [
