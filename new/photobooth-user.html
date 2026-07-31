@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Photobooth - Sesi Foto</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+  :root{
+    --bg:#14161c;
+    --panel:#1c1f28;
+    --panel-2:#232733;
+    --border:#2e3340;
+    --border-light:#3a4055;
+    --text:#e8eaf0;
+    --text-dim:#8b90a3;
+    --accent:#7c6ef2;
+    --accent-2:#5ad1c9;
+    --danger:#f2617c;
+    --warn:#f2b35a;
+    --success:#5ad18a;
+    font-size:15px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    min-height:100vh;
+    overflow-x:hidden;
+  }
+  button{font-family:inherit;cursor:pointer;border:none;outline:none;}
+  ::-webkit-scrollbar{width:8px;height:8px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:var(--border-light);border-radius:4px;}
+
+  .btn{
+    padding:12px 20px;border-radius:10px;font-size:14px;font-weight:700;
+    background:var(--panel-2);color:var(--text);border:1px solid var(--border);
+    display:inline-flex;align-items:center;gap:8px;transition:.15s;
+  }
+  .btn:hover{background:var(--border-light);}
+  .btn-primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .btn-primary:hover{background:#6c5ee0;}
+  .btn-success{background:var(--success);border-color:var(--success);color:#083621;}
+  .btn-success:hover{background:#4bc07c;}
+  .btn-danger{background:var(--danger);border-color:var(--danger);color:#fff;}
+  .btn:disabled{opacity:.35;cursor:not-allowed;}
+  .btn-icon{width:38px;height:38px;padding:0;justify-content:center;border-radius:50%;}
+  .btn-lg{padding:16px 30px;font-size:16px;border-radius:12px;}
+
+  /* ===== SCREEN SWITCHING ===== */
+  .screen{display:none;min-height:100vh;}
+  .screen.active{display:block;}
+
+  /* ===== TOPBAR (list screen) ===== */
+  .topbar{
+    height:56px;display:flex;align-items:center;justify-content:space-between;
+    padding:0 20px;background:var(--panel);border-bottom:1px solid var(--border);
+  }
+  .brand{font-weight:700;font-size:15px;display:flex;align-items:center;gap:8px;}
+  .brand-badge{
+    width:28px;height:28px;border-radius:8px;
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));
+    display:flex;align-items:center;justify-content:center;font-size:15px;
+  }
+
+  /* ===== TEMPLATE LIST SCREEN ===== */
+  .list-wrap{padding:30px 24px 60px;max-width:1100px;margin:0 auto;}
+  .list-head{text-align:center;margin-bottom:28px;}
+  .list-head h1{margin:0 0 6px;font-size:24px;}
+  .list-head p{margin:0;color:var(--text-dim);font-size:14px;}
+  .tpl-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(190px,1fr));
+    gap:18px;
+  }
+  .tpl-card{
+    background:var(--panel);border:1px solid var(--border);border-radius:14px;
+    overflow:hidden;cursor:pointer;transition:.18s;
+  }
+  .tpl-card:hover{border-color:var(--accent);transform:translateY(-3px);box-shadow:0 10px 24px rgba(0,0,0,.35);}
+  .tpl-thumb{height:170px;background:var(--panel-2);position:relative;}
+  .tpl-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+  .tpl-info{padding:12px 14px;}
+  .tpl-info .tname{font-weight:700;font-size:14px;}
+  .empty-state{text-align:center;padding:80px 20px;color:var(--text-dim);}
+  .empty-state .ic{font-size:40px;margin-bottom:12px;}
+
+  /* ===== PREVIEW MODAL ===== */
+  .modal-overlay{
+    position:fixed;inset:0;background:rgba(8,8,12,.78);
+    display:none;align-items:center;justify-content:center;z-index:200;
+    backdrop-filter:blur(2px);
+  }
+  .modal-overlay.active{display:flex;}
+  .preview-modal{
+    background:var(--panel);border-radius:16px;padding:24px;
+    max-width:92vw;max-height:92vh;display:flex;flex-direction:column;align-items:center;
+    position:relative;box-shadow:0 24px 60px rgba(0,0,0,.55);
+  }
+  .modal-close-x{
+    position:absolute;top:14px;right:14px;width:32px;height:32px;border-radius:50%;
+    background:var(--panel-2);display:flex;align-items:center;justify-content:center;
+    color:var(--text-dim);font-size:16px;z-index:5;
+  }
+  .modal-close-x:hover{background:var(--border-light);color:var(--text);}
+  .preview-modal h3{margin:0 0 14px;font-size:17px;}
+  #previewStageWrap{
+    background:#0c0d11;border-radius:10px;padding:16px;
+    display:flex;align-items:center;justify-content:center;margin-bottom:18px;
+    max-height:60vh;overflow:auto;
+  }
+  #previewStage{position:relative;background:#fff;box-shadow:0 8px 30px rgba(0,0,0,.4);}
+
+  /* ===== SESSION SCREEN (canvas with photo areas) ===== */
+  .session-topbar{
+    height:56px;display:flex;align-items:center;justify-content:space-between;
+    padding:0 20px;background:var(--panel);border-bottom:1px solid var(--border);
+  }
+  .session-title{font-weight:700;font-size:14px;display:flex;align-items:center;gap:10px;}
+  .progress-pill{
+    font-size:12px;font-weight:700;background:var(--panel-2);border:1px solid var(--border);
+    padding:5px 12px;border-radius:20px;color:var(--text-dim);
+  }
+  .session-body{
+    display:flex;flex-direction:column;align-items:center;
+    padding:30px 16px 100px;
+  }
+  #sessionStageWrap{
+    background:#0c0d11;border-radius:14px;padding:20px;
+    display:inline-flex;align-items:center;justify-content:center;
+    box-shadow:inset 0 0 0 1px var(--border);
+  }
+  #sessionStage{position:relative;background:#fff;box-shadow:0 14px 40px rgba(0,0,0,.5);}
+
+  .session-photo-area{
+    position:absolute;
+    background:repeating-linear-gradient(45deg,#dcdfe8,#dcdfe8 8px,#eceef3 8px,#eceef3 16px);
+    border:2px dashed #a8afc4;
+    display:flex;align-items:center;justify-content:center;
+    overflow:hidden;
+    cursor:pointer;
+  }
+  .session-photo-area.filled{border-style:solid;border-color:var(--success);}
+  .photo-area-final{
+    overflow:hidden;
+  }
+  .session-photo-area img{width:100%;height:100%;object-fit:cover;}
+  .add-photo-btn{
+    width:46px;height:46px;border-radius:50%;
+    background:rgba(124,110,242,.92);color:#fff;font-size:24px;font-weight:700;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 4px 14px rgba(0,0,0,.3);
+    pointer-events:none;
+  }
+  .session-photo-area.filled .add-photo-btn{display:none;}
+  .filled-badge{
+    position:absolute;top:6px;right:6px;
+    width:22px;height:22px;border-radius:50%;background:var(--success);
+    display:flex;align-items:center;justify-content:center;color:#08331f;font-size:12px;font-weight:900;
+    pointer-events:none;
+  }
+
+  .decor-object{position:absolute;pointer-events:none;}
+  .decor-text{display:flex;align-items:center;justify-content:center;white-space:nowrap;}
+  .decor-shape-inner{width:100%;height:100%;}
+
+  .session-footer{
+    position:fixed;bottom:0;left:0;right:0;
+    background:var(--panel);border-top:1px solid var(--border);
+    padding:14px 20px;display:flex;align-items:center;justify-content:center;gap:14px;
+    z-index:50;
+  }
+
+  /* ===== CAMERA FULLSCREEN ===== */
+  .camera-overlay{
+    position:fixed;inset:0;background:#000;z-index:500;
+    display:none;flex-direction:column;align-items:center;justify-content:center;
+  }
+  .camera-overlay.active{display:flex;}
+  .camera-video-wrap{
+    position:relative;
+    width:100%;height:100%;
+    display:flex;align-items:center;justify-content:center;
+    overflow:hidden;
+  }
+  #cameraVideo{
+    max-width:100%;max-height:100%;
+    width:auto;height:auto;
+    object-fit:contain;
+    display:block;
+    transform:scaleX(-1); /* mirror the live feed like a selfie cam */
+  }
+  /* cameraCanvasPreview shows the already-cropped, already-mirrored captured image.
+     It is positioned as a fixed overlay matching the exact cutout box rect
+     (see JS: boxX/boxY/boxW/boxH) so it lines up pixel-for-pixel with what the
+     user saw before capture — not object-fit inside the whole video wrap. */
+  #cameraCanvasPreview{
+    display:none;
+    position:fixed;
+    object-fit:cover;
+    z-index:2;
+  }
+  .camera-mask{
+    position:absolute;inset:0;
+    pointer-events:none;
+    z-index:5;
+  }
+  .camera-mask-svg{width:100%;height:100%;}
+  .camera-topbar{
+    position:absolute;top:0;left:0;right:0;
+    display:flex;justify-content:flex-end;padding:16px;z-index:10;
+  }
+  .cam-close-btn{
+    width:42px;height:42px;border-radius:50%;
+    background:rgba(255,255,255,.15);color:#fff;font-size:18px;
+    display:flex;align-items:center;justify-content:center;
+    backdrop-filter:blur(4px);
+  }
+  .cam-close-btn:hover{background:rgba(255,255,255,.25);}
+  .camera-controls{
+    position:absolute;bottom:30px;left:0;right:0;
+    display:flex;align-items:center;justify-content:center;gap:20px;z-index:10;
+  }
+  .cam-btn-round{
+    width:70px;height:70px;border-radius:50%;
+    background:#fff;border:4px solid rgba(255,255,255,.4);
+    display:flex;align-items:center;justify-content:center;font-size:26px;
+  }
+  .cam-btn-round:active{transform:scale(.94);}
+  .cam-btn-secondary{
+    padding:12px 22px;border-radius:30px;font-size:14px;font-weight:700;
+    background:rgba(255,255,255,.15);color:#fff;backdrop-filter:blur(4px);
+  }
+  .cam-btn-secondary:hover{background:rgba(255,255,255,.25);}
+  .cam-btn-save{
+    padding:12px 26px;border-radius:30px;font-size:14px;font-weight:700;
+    background:var(--success);color:#08331f;
+  }
+  .countdown-num{
+    position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+    font-size:120px;font-weight:900;color:#fff;text-shadow:0 4px 20px rgba(0,0,0,.6);
+    z-index:15;pointer-events:none;
+  }
+  .countdown-num.active{display:flex;}
+  .cam-hint{
+    position:absolute;top:70px;left:0;right:0;text-align:center;color:#fff;
+    font-size:13px;opacity:.85;z-index:10;text-shadow:0 2px 6px rgba(0,0,0,.5);
+  }
+
+  /* ===== SWAP PHOTO POPUP ===== */
+  .swap-modal{
+    background:var(--panel);border-radius:16px;padding:20px;
+    max-width:90vw;box-shadow:0 24px 60px rgba(0,0,0,.55);
+    display:flex;flex-direction:column;align-items:center;position:relative;
+  }
+  .swap-modal img{max-width:70vw;max-height:60vh;border-radius:10px;margin-bottom:16px;}
+  .swap-actions{display:flex;gap:10px;}
+
+  /* ===== RESULT SCREEN ===== */
+  .result-wrap{
+    display:flex;flex-direction:column;align-items:center;padding:40px 16px 60px;
+  }
+  .result-wrap h1{font-size:22px;margin:0 0 4px;}
+  .result-wrap p.sub{color:var(--text-dim);font-size:13px;margin:0 0 24px;}
+  #resultStageWrap{
+    background:#0c0d11;border-radius:14px;padding:20px;margin-bottom:26px;
+    display:inline-flex;
+  }
+  #resultStage{position:relative;background:#fff;box-shadow:0 14px 44px rgba(0,0,0,.5);}
+  .result-actions{display:flex;gap:12px;}
+
+  /* Processing overlay */
+  .processing-overlay{
+    position:fixed;inset:0;background:rgba(8,8,12,.9);z-index:600;
+    display:none;align-items:center;justify-content:center;flex-direction:column;gap:16px;
+  }
+  .processing-overlay.active{display:flex;}
+  .spinner{
+    width:50px;height:50px;border-radius:50%;
+    border:4px solid var(--border-light);border-top-color:var(--accent);
+    animation:spin 0.8s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .processing-overlay p{color:var(--text-dim);font-size:14px;}
+
+  @media print{
+    body *{visibility:hidden;}
+    #resultStageWrap, #resultStageWrap *{visibility:visible;}
+    #resultStageWrap{position:fixed;top:0;left:0;padding:0;background:#fff;margin:0;}
+    #resultStage{box-shadow:none;}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ SCREEN 1: TEMPLATE LIST ============ -->
+<div class="screen active" id="screenList">
+  <div class="topbar">
+    <div class="brand">
+      <a href="index.html" class="btn btn-icon" id="btnHomeUser" title="Kembali ke Home" style="margin-right:4px;"><i class="fa-solid fa-house"></i></a>
+      <div class="brand-badge"><i class="fa-solid fa-camera-retro"></i></div>Photobooth
+    </div>
+    <a href="photobooth-admin.html" class="btn" style="text-decoration:none;font-size:12px;padding:8px 12px;"><i class="fa-solid fa-gear"></i> Admin</a>
+  </div>
+  <div class="list-wrap">
+    <div class="list-head">
+      <h1>Pilih Template</h1>
+      <p>Sentuh salah satu template untuk memulai sesi foto</p>
+    </div>
+    <div class="tpl-grid" id="tplGrid"></div>
+  </div>
+</div>
+
+<!-- ============ PREVIEW MODAL ============ -->
+<div class="modal-overlay" id="previewModal">
+  <div class="preview-modal">
+    <div class="modal-close-x" id="closePreviewModal"><i class="fa-solid fa-xmark"></i></div>
+    <h3 id="previewName">Nama Template</h3>
+    <div id="previewStageWrap"><div id="previewStage"></div></div>
+    <button class="btn btn-primary btn-lg" id="btnUseTemplate">Gunakan Template</button>
+  </div>
+</div>
+
+<!-- ============ SCREEN 2: SESSION (photo capture) ============ -->
+<div class="screen" id="screenSession">
+  <div class="session-topbar">
+    <div class="session-title">
+      <button class="btn" id="btnExitSession" style="padding:7px 12px;font-size:12px;"><i class="fa-solid fa-arrow-left"></i> Keluar</button>
+      <span id="sessionTplName">Template</span>
+    </div>
+    <div class="progress-pill" id="progressPill">0 / 0 foto terisi</div>
+  </div>
+  <div class="session-body">
+    <div id="sessionStageWrap"><div id="sessionStage"></div></div>
+  </div>
+  <div class="session-footer">
+    <button class="btn btn-primary btn-lg" id="btnProses" disabled><i class="fa-solid fa-check"></i> Proses</button>
+  </div>
+</div>
+
+<!-- ============ CAMERA FULLSCREEN ============ -->
+<div class="camera-overlay" id="cameraOverlay">
+  <div class="camera-topbar">
+    <button class="cam-close-btn" id="camCloseBtn"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+  <div class="cam-hint" id="camHint">Posisikan foto sesuai bentuk area</div>
+  <div class="camera-video-wrap">
+    <video id="cameraVideo" autoplay playsinline muted></video>
+    <img id="cameraCanvasPreview" alt="preview">
+    <div class="camera-mask" id="cameraMask"></div>
+    <div class="countdown-num" id="countdownNum">3</div>
+  </div>
+  <div class="camera-controls" id="cameraControlsInitial">
+    <button class="cam-btn-round" id="btnCapture"><i class="fa-solid fa-camera"></i></button>
+  </div>
+  <div class="camera-controls" id="cameraControlsAfter" style="display:none;">
+    <button class="cam-btn-secondary" id="btnRetake"><i class="fa-solid fa-rotate-left"></i> Retake</button>
+    <button class="cam-btn-save" id="btnSaveCapture"><i class="fa-solid fa-check"></i> Save</button>
+  </div>
+</div>
+<canvas id="captureCanvas" style="display:none;"></canvas>
+
+<!-- ============ SWAP PHOTO MODAL ============ -->
+<div class="modal-overlay" id="swapModal">
+  <div class="swap-modal">
+    <div class="modal-close-x" id="closeSwapModal"><i class="fa-solid fa-xmark"></i></div>
+    <img id="swapPreviewImg" alt="foto">
+    <div class="swap-actions">
+      <button class="btn" id="swapCloseBtn">Close</button>
+      <button class="btn btn-primary" id="swapRetakeBtn"><i class="fa-solid fa-rotate-left"></i> Retake</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SCREEN 3: RESULT ============ -->
+<div class="screen" id="screenResult">
+  <div class="topbar">
+    <div class="brand">
+      <a href="index.html" class="btn btn-icon" id="btnHomeResult" title="Kembali ke Home" style="margin-right:4px;"><i class="fa-solid fa-house"></i></a>
+      <div class="brand-badge"><i class="fa-solid fa-camera-retro"></i></div>Photobooth
+    </div>
+    <a href="photobooth-admin.html" class="btn" style="text-decoration:none;font-size:12px;padding:8px 12px;"><i class="fa-solid fa-gear"></i> Admin</a>
+  </div>
+  <div class="result-wrap">
+    <h1>Hasil Kolase</h1>
+    <p class="sub">Foto siap dicetak sesuai ukuran template</p>
+    <div id="resultStageWrap"><div id="resultStage"></div></div>
+    <div class="result-actions">
+      <button class="btn btn-lg" id="btnNewSession"><i class="fa-solid fa-rotate-right"></i> Sesi Baru</button>
+      <button class="btn btn-primary btn-lg" id="btnPrint"><i class="fa-solid fa-print"></i> Print</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ PROCESSING OVERLAY ============ -->
+<div class="processing-overlay" id="processingOverlay">
+  <div class="spinner"></div>
+  <p>Memproses hasil kolase…</p>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+/* =========================================================
+   STATE
+========================================================= */
+let templates = [];
+let displayTemplates = [];
+let activeTemplate = null;   // template being used in session
+let sessionPhotos = {};      // { objId: dataURL }
+let currentPhotoAreaId = null; // which photo area camera is currently filling
+let stream = null;
+let capturedDataUrl = null;
+
+/* =========================================================
+   DOM REFS
+========================================================= */
+const screenList = document.getElementById('screenList');
+const screenSession = document.getElementById('screenSession');
+const screenResult = document.getElementById('screenResult');
+const tplGrid = document.getElementById('tplGrid');
+
+/* =========================================================
+   LOAD TEMPLATES (shared localStorage w/ Admin app)
+========================================================= */
+function loadTemplates(){
+  try{
+    const raw = localStorage.getItem('pb_templates');
+    templates = raw ? JSON.parse(raw) : [];
+  }catch(e){ templates = []; }
+  displayTemplates = templates.filter(t=>t.status === 'display');
+}
+
+function loadHistory(){
+  try{
+    const raw = localStorage.getItem('pb_history');
+    return raw ? JSON.parse(raw) : [];
+  }catch(e){ return []; }
+}
+function saveHistoryEntry(entry){
+  const hist = loadHistory();
+  hist.push(entry);
+  localStorage.setItem('pb_history', JSON.stringify(hist));
+}
+
+/* =========================================================
+   SCREEN SWITCHING
+========================================================= */
+function showScreen(id){
+  [screenList, screenSession, screenResult].forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+/* =========================================================
+   RENDER: TEMPLATE LIST (cards)
+========================================================= */
+function renderTplList(){
+  tplGrid.innerHTML = '';
+  if(displayTemplates.length === 0){
+    tplGrid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;">
+      <div class="ic"><i class="fa-solid fa-folder-open"></i></div>
+      <div>Belum ada template yang tersedia.<br>Hubungi Admin untuk menambahkan template.</div>
+    </div>`;
+    return;
+  }
+  displayTemplates.forEach(tpl=>{
+    const card = document.createElement('div');
+    card.className = 'tpl-card';
+    card.innerHTML = `
+      <div class="tpl-thumb">${tpl.thumb ? `<img src="${tpl.thumb}">` : ''}</div>
+      <div class="tpl-info"><div class="tname">${escapeHtml(tpl.name)}</div></div>
+    `;
+    card.onclick = ()=> openPreview(tpl);
+    tplGrid.appendChild(card);
+  });
+}
+function escapeHtml(s){
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+/* =========================================================
+   PREVIEW MODAL
+========================================================= */
+const previewModal = document.getElementById('previewModal');
+let previewingTpl = null;
+
+function openPreview(tpl){
+  previewingTpl = tpl;
+  document.getElementById('previewName').textContent = tpl.name;
+  const stage = document.getElementById('previewStage');
+  renderTemplateStatic(stage, tpl, {}, 380);
+  previewModal.classList.add('active');
+}
+document.getElementById('closePreviewModal').onclick = ()=> previewModal.classList.remove('active');
+previewModal.addEventListener('mousedown', (e)=>{ if(e.target===previewModal) previewModal.classList.remove('active'); });
+
+document.getElementById('btnUseTemplate').onclick = ()=>{
+  previewModal.classList.remove('active');
+  startSession(previewingTpl);
+};
+
+/* =========================================================
+   RENDER TEMPLATE (static, scaled) — shared by preview/session/result
+   photosMap: { objId: dataUrl }
+========================================================= */
+function renderTemplateStatic(container, tpl, photosMap, maxDim, interactive, isFinalOutput){
+  const scale = Math.min(maxDim / tpl.canvasWpx, maxDim / tpl.canvasHpx, 1);
+  const w = Math.round(tpl.canvasWpx * scale);
+  const h = Math.round(tpl.canvasHpx * scale);
+  container.style.width = w + 'px';
+  container.style.height = h + 'px';
+  container.innerHTML = '';
+  applyBackgroundTo(container, tpl.background);
+  container.dataset.scale = scale;
+
+  tpl.objects.slice().sort((a,b)=>a.z-b.z).forEach(obj=>{
+    const el = document.createElement('div');
+    el.style.position = 'absolute';
+    el.style.left = (obj.x*scale) + 'px';
+    el.style.top = (obj.y*scale) + 'px';
+    el.style.width = (obj.w*scale) + 'px';
+    el.style.height = (obj.h*scale) + 'px';
+    el.style.transform = `rotate(${obj.rotation||0}deg)`;
+    el.dataset.objId = obj.id;
+
+    if(obj.type === 'photoArea'){
+      const hasPhoto = !!photosMap[obj.id];
+      if(isFinalOutput){
+        // Final/print output: no session UI chrome (no dashed border, no green
+        // 'filled' outline, no checkmark badge) — just the photo exactly as
+        // it will be placed in the printed collage, per the Admin's design.
+        el.className = 'photo-area-final';
+        if(hasPhoto){
+          const img = document.createElement('img');
+          img.src = photosMap[obj.id];
+          img.style.width = '100%';
+          img.style.height = '100%';
+          img.style.objectFit = 'cover';
+          img.style.display = 'block';
+          el.appendChild(img);
+        }
+      } else {
+        el.className = 'session-photo-area' + (hasPhoto ? ' filled' : '');
+        if(hasPhoto){
+          const img = document.createElement('img');
+          img.src = photosMap[obj.id];
+          el.appendChild(img);
+          const badge = document.createElement('div');
+          badge.className = 'filled-badge';
+          badge.innerHTML = '<i class="fa-solid fa-check"></i>';
+          el.appendChild(badge);
+        } else {
+          const btn = document.createElement('div');
+          btn.className = 'add-photo-btn';
+          btn.textContent = '+';
+          el.appendChild(btn);
+        }
+      }
+      if(interactive){
+        el.style.pointerEvents = 'auto';
+        attachPhotoAreaEvents(el, obj.id);
+      }
+    } else if(obj.type === 'text'){
+      el.className = 'decor-object decor-text';
+      el.style.fontSize = (obj.fontSize*scale) + 'px';
+      el.style.color = obj.color || '#222';
+      el.style.fontWeight = obj.bold ? '700':'400';
+      el.style.fontStyle = obj.italic ? 'italic':'normal';
+      el.textContent = obj.text || '';
+    } else if(obj.type === 'shape'){
+      el.className = 'decor-object';
+      const inner = document.createElement('div');
+      inner.className = 'decor-shape-inner';
+      inner.style.background = obj.color || '#7c6ef2';
+      if(obj.shape==='circle') inner.style.borderRadius = '50%';
+      if(obj.shape==='rounded') inner.style.borderRadius = (10*scale)+'px';
+      el.appendChild(inner);
+    } else if(obj.type === 'sticker'){
+      el.className = 'decor-object';
+      el.style.display='flex';el.style.alignItems='center';el.style.justifyContent='center';
+      el.style.fontSize = Math.min(obj.w,obj.h)*scale*0.8 + 'px';
+      el.textContent = obj.emoji || '';
+    } else if(obj.type === 'logo'){
+      el.className = 'decor-object';
+      if(obj.src){
+        el.style.backgroundImage = `url(${obj.src})`;
+        el.style.backgroundSize = 'contain';
+        el.style.backgroundPosition = 'center';
+        el.style.backgroundRepeat = 'no-repeat';
+      }
+    }
+    container.appendChild(el);
+  });
+}
+
+function applyBackgroundTo(el, bg){
+  if(!bg){ el.style.background = '#fff'; return; }
+  if(bg.type === 'solid'){
+    el.style.background = bg.color || '#ffffff';
+  } else if(bg.type === 'gradient'){
+    el.style.background = `linear-gradient(${bg.angle||135}deg, ${bg.c1||'#7c6ef2'}, ${bg.c2||'#5ad1c9'})`;
+  } else if(bg.type === 'texture'){
+    const tex = bg.texture || 'dots';
+    if(tex==='dots'){
+      el.style.background = `radial-gradient(circle, ${bg.color||'#ccc'} 1.5px, ${bg.base||'#fff'} 1.5px) 0 0/14px 14px`;
+    } else if(tex==='stripes'){
+      el.style.background = `repeating-linear-gradient(45deg, ${bg.base||'#fff'}, ${bg.base||'#fff'} 10px, ${bg.color||'#eee'} 10px, ${bg.color||'#eee'} 20px)`;
+    } else if(tex==='grid'){
+      el.style.background = `linear-gradient(${bg.color||'#eee'} 1px, transparent 1px), linear-gradient(90deg, ${bg.color||'#eee'} 1px, ${bg.base||'#fff'} 1px)`;
+      el.style.backgroundSize = '16px 16px';
+      el.style.backgroundColor = bg.base||'#fff';
+    }
+  } else if(bg.type === 'image'){
+    el.style.background = `url(${bg.src}) center/cover no-repeat`;
+  }
+}
+
+/* =========================================================
+   SESSION: start
+========================================================= */
+function startSession(tpl){
+  activeTemplate = tpl;
+  sessionPhotos = {};
+  document.getElementById('sessionTplName').textContent = tpl.name;
+  renderSessionStage();
+  showScreen('screenSession');
+}
+
+function photoAreaCount(){
+  return activeTemplate.objects.filter(o=>o.type==='photoArea').length;
+}
+function filledCount(){
+  return Object.keys(sessionPhotos).length;
+}
+
+function renderSessionStage(){
+  const stage = document.getElementById('sessionStage');
+  renderTemplateStatic(stage, activeTemplate, sessionPhotos, 620, true);
+  updateProgress();
+}
+
+function updateProgress(){
+  const total = photoAreaCount();
+  const filled = filledCount();
+  document.getElementById('progressPill').textContent = `${filled} / ${total} foto terisi`;
+  const btnProses = document.getElementById('btnProses');
+  btnProses.disabled = filled < total;
+}
+
+function attachPhotoAreaEvents(el, objId){
+  let lastTap = 0;
+  el.addEventListener('click', ()=>{
+    const now = Date.now();
+    const isDoubleTap = (now - lastTap) < 380;
+    lastTap = now;
+
+    if(sessionPhotos[objId]){
+      if(isDoubleTap){
+        openSwapModal(objId);
+      }
+      // single tap on filled area: do nothing (avoid accidental retake)
+    } else {
+      openCamera(objId);
+    }
+  });
+}
+
+document.getElementById('btnExitSession').onclick = ()=>{
+  if(filledCount() > 0 && !confirm('Keluar dari sesi ini? Foto yang sudah diambil akan hilang.')) return;
+  activeTemplate = null; sessionPhotos = {};
+  loadTemplates(); renderTplList();
+  showScreen('screenList');
+};
+
+/* =========================================================
+   SWAP PHOTO MODAL (double tap on filled area)
+========================================================= */
+const swapModal = document.getElementById('swapModal');
+let swapTargetId = null;
+function openSwapModal(objId){
+  swapTargetId = objId;
+  document.getElementById('swapPreviewImg').src = sessionPhotos[objId];
+  swapModal.classList.add('active');
+}
+document.getElementById('closeSwapModal').onclick = ()=> swapModal.classList.remove('active');
+document.getElementById('swapCloseBtn').onclick = ()=> swapModal.classList.remove('active');
+document.getElementById('swapRetakeBtn').onclick = ()=>{
+  swapModal.classList.remove('active');
+  openCamera(swapTargetId);
+};
+
+/* =========================================================
+   CAMERA (fullscreen) — capture / retake / save
+========================================================= */
+const cameraOverlay = document.getElementById('cameraOverlay');
+const cameraVideo = document.getElementById('cameraVideo');
+const cameraPreviewImg = document.getElementById('cameraCanvasPreview');
+const cameraMask = document.getElementById('cameraMask');
+const captureCanvas = document.getElementById('captureCanvas');
+const controlsInitial = document.getElementById('cameraControlsInitial');
+const controlsAfter = document.getElementById('cameraControlsAfter');
+
+function getPhotoAreaObj(objId){
+  return activeTemplate.objects.find(o=>o.id===objId);
+}
+
+async function openCamera(objId){
+  currentPhotoAreaId = objId;
+  capturedDataUrl = null;
+  cameraOverlay.classList.add('active');
+  controlsInitial.style.display = 'flex';
+  controlsAfter.style.display = 'none';
+  cameraVideo.style.display = 'block';
+  cameraPreviewImg.style.display = 'none';
+
+  const obj = getPhotoAreaObj(objId);
+  document.getElementById('camHint').textContent = `Area foto: ${obj.ratio}`;
+
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio:false });
+    cameraVideo.srcObject = stream;
+    await cameraVideo.play();
+    // Wait for metadata (real intrinsic videoWidth/videoHeight) and one layout frame —
+    // buildCameraMask() needs the true camera resolution to manually compute the
+    // object-fit:contain rect, and needs the wrap element to have its final layout size.
+    if(cameraVideo.videoWidth === 0){
+      await new Promise(res => {
+        const onMeta = ()=>{ cameraVideo.removeEventListener('loadedmetadata', onMeta); res(); };
+        cameraVideo.addEventListener('loadedmetadata', onMeta);
+      });
+    }
+    await new Promise(res => requestAnimationFrame(res));
+    buildCameraMask(obj);
+  }catch(err){
+    alert('Tidak dapat mengakses kamera. Pastikan izin kamera diberikan pada browser.\n\n' + err.message);
+    closeCamera();
+  }
+}
+
+function buildCameraMask(obj){
+  // Build a dark overlay with a transparent cutout matching the photo area's aspect ratio.
+  // The cutout must sit exactly within the video's rendered (letterboxed) area.
+  // Rather than trusting getBoundingClientRect() timing (which can occasionally read a
+  // stale/incorrect box right after playback starts, especially on first open), compute
+  // the video's contain-fit rect manually from its true intrinsic resolution
+  // (videoWidth/videoHeight) against the wrap element's actual box. This is deterministic
+  // and matches exactly how object-fit:contain lays the video out, so the mask can never
+  // drift from what the browser paints.
+  const ratioParts = (obj.ratio && obj.ratio.includes(':')) ? obj.ratio.split(':').map(Number) : [obj.w, obj.h];
+  const rw = ratioParts[0] || obj.w, rh = ratioParts[1] || obj.h;
+
+  const wrapRect = document.querySelector('.camera-video-wrap').getBoundingClientRect();
+  const wrapX = wrapRect.left, wrapY = wrapRect.top;
+  const wrapW = wrapRect.width, wrapH = wrapRect.height;
+
+  const vidW = cameraVideo.videoWidth, vidH = cameraVideo.videoHeight;
+
+  // Manually compute the object-fit:contain rect of the video within the wrap.
+  let renderW, renderH;
+  if(vidW && vidH){
+    const videoAspect = vidW / vidH;
+    const wrapAspect = wrapW / wrapH;
+    if(videoAspect > wrapAspect){
+      renderW = wrapW; renderH = wrapW / videoAspect;
+    } else {
+      renderH = wrapH; renderW = wrapH * videoAspect;
+    }
+  } else {
+    // Fallback before metadata is available (shouldn't normally happen — we wait for it).
+    renderW = wrapW; renderH = wrapH;
+  }
+  const renderX = wrapX + (wrapW - renderW)/2;
+  const renderY = wrapY + (wrapH - renderH)/2;
+
+  let boxW, boxH;
+  const maxW = renderW * 0.92, maxH = renderH * 0.92;
+  if(rw/rh > maxW/maxH){
+    boxW = maxW; boxH = maxW * (rh/rw);
+  } else {
+    boxH = maxH; boxW = maxH * (rw/rh);
+  }
+  const boxX = renderX + (renderW - boxW)/2;
+  const boxY = renderY + (renderH - boxH)/2;
+
+  const vw = window.innerWidth, vh = window.innerHeight;
+  cameraMask.innerHTML = `
+    <svg class="camera-mask-svg" viewBox="0 0 ${vw} ${vh}" preserveAspectRatio="none">
+      <defs>
+        <mask id="camCutout">
+          <rect x="0" y="0" width="${vw}" height="${vh}" fill="#fff"/>
+          <rect x="${boxX}" y="${boxY}" width="${boxW}" height="${boxH}" fill="#000"/>
+        </mask>
+      </defs>
+      <rect x="0" y="0" width="${vw}" height="${vh}" fill="rgba(0,0,0,0.62)" mask="url(#camCutout)"/>
+      <rect x="${boxX}" y="${boxY}" width="${boxW}" height="${boxH}" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="6 6" opacity="0.85"/>
+    </svg>
+  `;
+  cameraMask.dataset.boxX = boxX;
+  cameraMask.dataset.boxY = boxY;
+  cameraMask.dataset.boxW = boxW;
+  cameraMask.dataset.boxH = boxH;
+  // Also store the video's true render rect (renderX/Y/W/H) so doCapture() uses the
+  // SAME source of truth as the mask, eliminating any possibility of the two disagreeing.
+  cameraMask.dataset.renderX = renderX;
+  cameraMask.dataset.renderY = renderY;
+  cameraMask.dataset.renderW = renderW;
+  cameraMask.dataset.renderH = renderH;
+}
+window.addEventListener('resize', ()=>{
+  if(cameraOverlay.classList.contains('active') && currentPhotoAreaId){
+    buildCameraMask(getPhotoAreaObj(currentPhotoAreaId));
+  }
+});
+
+document.getElementById('camCloseBtn').onclick = closeCamera;
+document.getElementById('btnRetake').onclick = ()=>{
+  capturedDataUrl = null;
+  cameraVideo.style.display = 'block';
+  cameraPreviewImg.style.display = 'none';
+  controlsInitial.style.display = 'flex';
+  controlsAfter.style.display = 'none';
+};
+
+function closeCamera(){
+  cameraOverlay.classList.remove('active');
+  if(stream){
+    stream.getTracks().forEach(t=>t.stop());
+    stream = null;
+  }
+  currentPhotoAreaId = null;
+}
+
+document.getElementById('btnCapture').onclick = ()=>{
+  runCountdown(3, doCapture);
+};
+
+function runCountdown(n, done){
+  const el = document.getElementById('countdownNum');
+  if(n <= 0){ el.classList.remove('active'); done(); return; }
+  el.textContent = n;
+  el.classList.add('active');
+  setTimeout(()=> runCountdown(n-1, done), 700);
+}
+
+function doCapture(){
+  const vw = cameraVideo.videoWidth, vh = cameraVideo.videoHeight;
+  if(!vw || !vh){ return; } // video not ready yet
+
+  // Crop box the user sees, in viewport coordinates (this is the MIRRORED view,
+  // since #cameraVideo has transform:scaleX(-1) applied to the whole element).
+  const boxX = parseFloat(cameraMask.dataset.boxX);
+  const boxY = parseFloat(cameraMask.dataset.boxY);
+  const boxW = parseFloat(cameraMask.dataset.boxW);
+  const boxH = parseFloat(cameraMask.dataset.boxH);
+
+  // Use the EXACT SAME video render rect that buildCameraMask already computed
+  // (stored in cameraMask.dataset) — do NOT call getBoundingClientRect() again here.
+  // Computing it twice, in two different ways, is what caused the mask and the
+  // captured photo to drift apart. Sharing one source of truth guarantees they match.
+  const renderX = parseFloat(cameraMask.dataset.renderX);
+  const renderY = parseFloat(cameraMask.dataset.renderY);
+  const renderW = parseFloat(cameraMask.dataset.renderW);
+  const renderH = parseFloat(cameraMask.dataset.renderH);
+  const scaleToSource = vw / renderW; // renderW/renderH keep source aspect ratio (contain)
+
+  // Crop box position relative to the rendered (mirrored, on-screen) video rect.
+  const cropXInRenderMirrored = boxX - renderX;
+  const cropYInRender = boxY - renderY;
+
+  // The video element is mirrored horizontally around its own center via CSS.
+  // A point at horizontal offset `d` from the LEFT edge of the mirrored element
+  // corresponds to offset `renderW - d - boxW` from the left edge of the
+  // UN-mirrored source frame (mirroring flips left/right around the center).
+  const cropXInRenderSource = renderW - cropXInRenderMirrored - boxW;
+
+  let srcX = cropXInRenderSource * scaleToSource;
+  let srcY = cropYInRender * scaleToSource;
+  let srcW = boxW * scaleToSource;
+  let srcH = boxH * scaleToSource;
+
+  // clamp to valid source bounds
+  srcX = Math.max(0, Math.min(srcX, vw));
+  srcY = Math.max(0, Math.min(srcY, vh));
+  srcW = Math.max(1, Math.min(srcW, vw - srcX));
+  srcH = Math.max(1, Math.min(srcH, vh - srcY));
+
+  captureCanvas.width = Math.round(srcW);
+  captureCanvas.height = Math.round(srcH);
+  const ctx = captureCanvas.getContext('2d');
+  // Draw mirrored so the final photo matches exactly what the user saw in the cutout
+  // (selfie-style: what appears on the left on screen should appear on the left in the result).
+  ctx.translate(captureCanvas.width, 0);
+  ctx.scale(-1, 1);
+  ctx.drawImage(cameraVideo, srcX, srcY, srcW, srcH, 0, 0, captureCanvas.width, captureCanvas.height);
+
+  capturedDataUrl = captureCanvas.toDataURL('image/jpeg', 0.92);
+  cameraPreviewImg.src = capturedDataUrl;
+  // Place the preview at the exact same screen rect as the cutout box the user
+  // just saw, so nothing appears to jump, shrink, or move after capture.
+  cameraPreviewImg.style.left = boxX + 'px';
+  cameraPreviewImg.style.top = boxY + 'px';
+  cameraPreviewImg.style.width = boxW + 'px';
+  cameraPreviewImg.style.height = boxH + 'px';
+  cameraVideo.style.display = 'none';
+  cameraPreviewImg.style.display = 'block';
+  controlsInitial.style.display = 'none';
+  controlsAfter.style.display = 'flex';
+}
+
+document.getElementById('btnSaveCapture').onclick = ()=>{
+  if(!capturedDataUrl || !currentPhotoAreaId) return;
+  sessionPhotos[currentPhotoAreaId] = capturedDataUrl;
+  closeCamera();
+  renderSessionStage();
+};
+
+/* =========================================================
+   PROSES (final render + save to admin history)
+========================================================= */
+document.getElementById('btnProses').onclick = ()=>{
+  document.getElementById('processingOverlay').classList.add('active');
+  setTimeout(()=>{
+    finalizeSession();
+    document.getElementById('processingOverlay').classList.remove('active');
+    showScreen('screenResult');
+  }, 900); // simulate rendering time
+};
+
+function finalizeSession(){
+  const stage = document.getElementById('resultStage');
+  renderTemplateStatic(stage, activeTemplate, sessionPhotos, 640, false, true);
+
+  saveHistoryEntry({
+    id: 'hist_' + Date.now(),
+    templateId: activeTemplate.id,
+    templateName: activeTemplate.name,
+    photoCount: Object.keys(sessionPhotos).length,
+    timestamp: Date.now(),
+  });
+}
+
+document.getElementById('btnPrint').onclick = ()=>{ window.print(); };
+document.getElementById('btnNewSession').onclick = resetToList;
+document.getElementById('btnBackToListFromResult').onclick = resetToList;
+
+function resetToList(){
+  activeTemplate = null;
+  sessionPhotos = {};
+  loadTemplates();
+  renderTplList();
+  showScreen('screenList');
+}
+
+/* =========================================================
+   INIT
+========================================================= */
+loadTemplates();
+renderTplList();
+
+})();
+</script>
+</body>
+</html>
