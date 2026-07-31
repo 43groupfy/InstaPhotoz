@@ -461,9 +461,12 @@ function showScreen(id){
 function renderTplList(){
   tplGrid.innerHTML = '';
   if(displayTemplates.length === 0){
+    const hasHiddenOnly = templates.length > 0;
     tplGrid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;">
       <div class="ic"><i class="fa-solid fa-folder-open"></i></div>
-      <div>Belum ada template yang tersedia.<br>Hubungi Admin untuk menambahkan template.</div>
+      <div>${hasHiddenOnly
+        ? `Ada ${templates.length} template, tapi semuanya berstatus <b>Hidden</b>.<br>Buka halaman Admin → klik <b>Show</b> pada template yang ingin ditampilkan.`
+        : 'Belum ada template yang dibuat.<br>Buka halaman Admin untuk membuat template terlebih dahulu.'}</div>
     </div>`;
     return;
   }
@@ -962,6 +965,16 @@ function resetToList(){
 ========================================================= */
 loadTemplates();
 renderTplList();
+
+// Auto-refresh template list when returning to this tab (e.g. after
+// creating/showing a template in the Admin page in another tab), so the
+// list doesn't appear "stuck" showing stale data from initial page load.
+window.addEventListener('focus', ()=>{
+  if(screenList.classList.contains('active')){ loadTemplates(); renderTplList(); }
+});
+document.addEventListener('visibilitychange', ()=>{
+  if(!document.hidden && screenList.classList.contains('active')){ loadTemplates(); renderTplList(); }
+});
 
 })();
 </script>
