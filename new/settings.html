@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photobooth - Pengaturan</title>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg: #14161c;
+            --panel: #1c1f28;
+            --panel-2: #232733;
+            --border: #2e3340;
+            --border-light: #3a4055;
+            --text: #e8eaf0;
+            --text-dim: #8b90a3;
+            --accent: #7c6ef2;
+            --accent-2: #5ad1c9;
+            --danger: #f2617c;
+            --success: #5ad18a;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+        
+        button { font-family: inherit; cursor: pointer; border: none; outline: none; }
+        
+        .btn { padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; background: var(--panel-2); color: var(--text); border: 1px solid var(--border); display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: 0.15s; text-decoration: none; }
+        .btn:hover { background: var(--border-light); }
+        .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+        .btn-primary:hover { background: #6c5ee0; }
+        .btn-success { background: rgba(90, 209, 138, 0.15); color: var(--success); border-color: rgba(90, 209, 138, 0.3); }
+        .btn-success:hover { background: var(--success); color: #08331f; }
+
+        /* ===== TOPBAR ===== */
+        .topbar {
+            height: 60px; display: flex; align-items: center; justify-content: space-between;
+            padding: 0 20px; background: var(--panel); border-bottom: 1px solid var(--border);
+            position: sticky; top: 0; z-index: 100;
+        }
+        .brand { font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+        .brand-badge { width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg, var(--accent), var(--accent-2)); display: flex; align-items: center; justify-content: center; color: #fff; }
+
+        /* ===== SETTINGS LAYOUT ===== */
+        .settings-wrap { padding: 40px 24px; max-width: 800px; margin: 0 auto; }
+        .settings-head { margin-bottom: 30px; }
+        .settings-head h1 { margin: 0 0 8px; font-size: 24px; }
+        .settings-head p { margin: 0; color: var(--text-dim); font-size: 14px; }
+
+        .settings-section {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+        
+        .section-title {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .section-desc {
+            font-size: 13px;
+            color: var(--text-dim);
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+
+        .action-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .action-card {
+            background: var(--panel-2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+        }
+        .action-card i {
+            font-size: 32px;
+            margin-bottom: 16px;
+            color: var(--text-dim);
+        }
+        .action-card h3 {
+            margin: 0 0 8px;
+            font-size: 15px;
+        }
+        .action-card p {
+            margin: 0 0 20px;
+            font-size: 12px;
+            color: var(--text-dim);
+            line-height: 1.4;
+        }
+        .action-card .btn {
+            width: 100%;
+        }
+
+        /* Notifikasi Toast */
+        .toast {
+            position: fixed;
+            bottom: -60px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--success);
+            color: #08331f;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-weight: 700;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+            transition: bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 1000;
+        }
+        .toast.show {
+            bottom: 30px;
+        }
+
+        @media (max-width: 600px) {
+            .action-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="topbar">
+        <div class="brand"><div class="brand-badge"><i class="fas fa-cog"></i></div>Pengaturan</div>
+        <div>
+            <a href="index.html" class="btn"><i class="fas fa-home"></i> Portal</a>
+        </div>
+    </div>
+
+    <div class="settings-wrap">
+        <div class="settings-head">
+            <h1>Sistem & Penyimpanan</h1>
+            <p>Kelola data aplikasi, cadangkan template, atau pulihkan data Anda.</p>
+        </div>
+
+        <div class="settings-section">
+            <div class="section-title"><i class="fas fa-database" style="color: var(--accent);"></i> Manajemen Template (Frame)</div>
+            <div class="section-desc">
+                Simpan semua template yang telah Anda buat di Admin Frame Builder ke dalam sebuah file JSON, atau masukkan kembali file JSON tersebut ke perangkat ini.
+            </div>
+
+            <div class="action-row">
+                <!-- EXPORT CARD -->
+                <div class="action-card">
+                    <i class="fas fa-file-export"></i>
+                    <h3>Export (Cadangkan)</h3>
+                    <p>Unduh semua desain frame Anda menjadi satu file <b>.json</b> untuk diamankan.</p>
+                    <button class="btn btn-primary" onclick="exportTemplates()"><i class="fas fa-download"></i> Download Data</button>
+                </div>
+
+                <!-- IMPORT CARD -->
+                <div class="action-card">
+                    <i class="fas fa-file-import"></i>
+                    <h3>Import (Pulihkan)</h3>
+                    <p>Unggah file <b>.json</b> yang telah Anda cadangkan untuk memulihkan frame.</p>
+                    <button class="btn btn-success" onclick="document.getElementById('importInput').click()"><i class="fas fa-upload"></i> Upload Data</button>
+                    <!-- Input file disembunyikan -->
+                    <input type="file" id="importInput" accept=".json" style="display: none;" onchange="importTemplates(event)">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toastMsg"><i class="fas fa-check-circle"></i> <span>Aksi berhasil!</span></div>
+
+    <script>
+        (function() {
+            'use strict';
+
+            const toast = document.getElementById('toastMsg');
+            const toastText = toast.querySelector('span');
+
+            function showToast(message, isError = false) {
+                toastText.textContent = message;
+                toast.style.background = isError ? 'var(--danger)' : 'var(--success)';
+                toast.style.color = isError ? '#fff' : '#08331f';
+                toast.classList.add('show');
+                setTimeout(() => toast.classList.remove('show'), 3000);
+            }
+
+            // ==========================================
+            // EXPORT TEMPLATES
+            // ==========================================
+            window.exportTemplates = function() {
+                try {
+                    const rawData = localStorage.getItem('pb_templates');
+                    if (!rawData || rawData === '[]') {
+                        alert('Tidak ada template yang tersedia untuk diekspor.');
+                        return;
+                    }
+
+                    // Buat file Blob dari JSON String
+                    const blob = new Blob([rawData], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    
+                    // Buat elemen link palsu untuk trigger download
+                    const link = document.createElement('a');
+                    link.href = url;
+                    
+                    // Format nama file: photobooth_frames_YYYYMMDD_HHMM.json
+                    const d = new Date();
+                    const dateStr = d.getFullYear() + String(d.getMonth()+1).padStart(2,'0') + String(d.getDate()).padStart(2,'0');
+                    const timeStr = String(d.getHours()).padStart(2,'0') + String(d.getMinutes()).padStart(2,'0');
+                    
+                    link.download = `photobooth_frames_${dateStr}_${timeStr}.json`;
+                    
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    
+                    URL.revokeObjectURL(url);
+                    showToast('Data template berhasil diekspor!');
+
+                } catch (error) {
+                    console.error(error);
+                    alert('Terjadi kesalahan saat mengekspor data.');
+                }
+            };
+
+            // ==========================================
+            // IMPORT TEMPLATES
+            // ==========================================
+            window.importTemplates = function(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const importedData = JSON.parse(e.target.result);
+
+                        // Validasi apakah format JSON-nya adalah Array (Standar penyimpanan kita)
+                        if (!Array.isArray(importedData)) {
+                            throw new Error("Format file JSON tidak valid. Data harus berupa kumpulan Array.");
+                        }
+
+                        // Dialog Pilihan: Gabungkan atau Timpa
+                        const userChoice = confirm(
+                            "File berhasil terbaca!\n\n" +
+                            "Klik [OK] untuk MENGGABUNGKAN (Menambahkan) template ini dengan template yang sudah ada di aplikasi.\n\n" +
+                            "Klik [Cancel/Batal] untuk MENIMPA (Menghapus) semua template lama dan menggantinya dengan yang baru."
+                        );
+
+                        if (userChoice) {
+                            // Menggabungkan (Append)
+                            const currentRaw = localStorage.getItem('pb_templates');
+                            const currentData = currentRaw ? JSON.parse(currentRaw) : [];
+                            
+                            // Gabungkan data lama dan data baru
+                            const mergedData = [...currentData, ...importedData];
+                            localStorage.setItem('pb_templates', JSON.stringify(mergedData));
+                            showToast(`Berhasil menambahkan ${importedData.length} template baru!`);
+                            
+                        } else {
+                            // Menimpa (Overwrite)
+                            const doubleCheck = confirm("Peringatan: Semua desain template lama Anda di browser ini akan terhapus. Lanjutkan?");
+                            if (!doubleCheck) {
+                                event.target.value = ''; // Reset input agar bisa pilih file yang sama lagi
+                                return; 
+                            }
+                            localStorage.setItem('pb_templates', JSON.stringify(importedData));
+                            showToast('Data template berhasil dipulihkan (Timpa Semua)!');
+                        }
+
+                    } catch (error) {
+                        console.error(error);
+                        alert("Gagal mengimpor! Pastikan Anda memilih file konfigurasi .json yang tepat dari aplikasi ini.\n\nDetail: " + error.message);
+                    }
+                    
+                    // Reset input agar pengguna bisa memicu 'onchange' pada file yang sama lagi jika diperlukan
+                    event.target.value = '';
+                };
+                
+                reader.readAsText(file);
+            };
+
+        })();
+    </script>
+</body>
+</html>
