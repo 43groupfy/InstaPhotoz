@@ -317,7 +317,7 @@
     display:flex;align-items:center;justify-content:center;
     position:relative;overflow:hidden;
   }
-  .tpl-thumb img{width:100%;height:100%;object-fit:cover;}
+  .tpl-thumb img{height:100%;object-fit:cover;}
   .tpl-status{
     position:absolute;top:8px;right:8px;
     font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;
@@ -478,7 +478,7 @@
 /* =========================================================
    STATE
 ========================================================= */
-const CM_TO_PX = 37.8; // approx 96dpi conversion for on-screen editing
+const CM_TO_PX = 118.11; // 300dpi conversion for high-quality print
 
 const CANVAS_PRESETS = {
   '4R':  {wcm:10.2, hcm:15.2},
@@ -823,12 +823,19 @@ function renderObjectEl(obj){
     el.innerHTML = `<i class="fa-solid ${obj.icon || 'fa-star'}"></i>`;
   } else if(obj.type === 'logo'){
     if(obj.src){
+      el.style.background = 'transparent'; // Hapus background abu-abu bawaan
       el.style.backgroundImage = `url(${obj.src})`;
       el.style.backgroundSize = 'contain';
       el.style.backgroundPosition = 'center';
       el.style.backgroundRepeat = 'no-repeat';
+      el.textContent = ''; // Hapus teks "Logo" agar tidak menumpuk
     } else {
-      el.style.cssText += 'background:#eee;display:flex;align-items:center;justify-content:center;color:#999;font-size:11px;';
+      el.style.background = '#eee';
+      el.style.display = 'flex';
+      el.style.alignItems = 'center';
+      el.style.justifyContent = 'center';
+      el.style.color = '#999';
+      el.style.fontSize = '11px';
       el.textContent = 'Logo';
     }
   }
@@ -914,17 +921,49 @@ function attachResizeHandler(handle, el, pos){
     if(!obj) return;
     const sx=e.clientX, sy=e.clientY;
     const ox=obj.x, oy=obj.y, ow=obj.w, oh=obj.h;
+    
     function onMove(ev){
       const dx=(ev.clientX-sx)/zoom, dy=(ev.clientY-sy)/zoom;
       let nx=ox, ny=oy, nw=ow, nh=oh;
+
+      // Logika resize bawaan
       if(pos.includes('e')) nw = Math.max(20, ow+dx);
       if(pos.includes('s')) nh = Math.max(20, oh+dy);
       if(pos.includes('w')){ nw = Math.max(20, ow-dx); nx = ox+ow-nw; }
       if(pos.includes('n')){ nh = Math.max(20, oh-dy); ny = oy+oh-nh; }
+
+      // --- TAMBAHAN KODE UNTUK MENGUNCI RASIO PHOTO AREA ---
+      if (obj.type === 'photoArea' && obj.ratio && obj.ratio !== 'free') {
+        const ratioParts = obj.ratio.split(':');
+        if (ratioParts.length === 2) {
+          const aspectRatio = parseFloat(ratioParts[0]) / parseFloat(ratioParts[1]);
+
+          // Sesuaikan dimensi tergantung sisi handle mana yang ditarik
+          if (pos === 'n' || pos === 's') {
+            nw = nh * aspectRatio;
+            if(pos.includes('w')) nx = ox + ow - nw;
+          } else if (pos === 'e' || pos === 'w') {
+            nh = nw / aspectRatio;
+            if(pos.includes('n')) ny = oy + oh - nh;
+          } else {
+            // Untuk tarikan dari sudut (nw, ne, sw, se), sesuaikan ke pergerakan yang paling signifikan
+            if (Math.abs(nw - ow) > Math.abs(nh - oh)) {
+              nh = nw / aspectRatio;
+              if(pos.includes('n')) ny = oy + oh - nh;
+            } else {
+              nw = nh * aspectRatio;
+              if(pos.includes('w')) nx = ox + ow - nw;
+            }
+          }
+        }
+      }
+      // -----------------------------------------------------
+
       obj.x=Math.round(nx); obj.y=Math.round(ny); obj.w=Math.round(nw); obj.h=Math.round(nh);
       renderObjectEl(obj);
       if(obj.id===selectedId) addHandlesRefresh(el);
     }
+    
     function onUp(){
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
@@ -934,6 +973,8 @@ function attachResizeHandler(handle, el, pos){
     window.addEventListener('mouseup', onUp);
   });
 }
+
+
 function addHandlesRefresh(el){
   el.querySelectorAll('.resize-handle,.rotate-handle').forEach(h=>h.remove());
   addHandles(el);
@@ -1120,8 +1161,28 @@ function bindPropsEvents(obj){
 
   if($('propX')) $('propX').oninput = e=>{ obj.x=parseFloat(e.target.value)||0; sync(); };
   if($('propY')) $('propY').oninput = e=>{ obj.y=parseFloat(e.target.value)||0; sync(); };
-  if($('propW')) $('propW').oninput = e=>{ obj.w=Math.max(10,parseFloat(e.target.value)||10); sync(); };
-  if($('propH')) $('propH').oninput = e=>{ obj.h=Math.max(10,parseFloat(e.target.value)||10); sync(); };
+  if($('propW')) $('propW').oninput = e=>{ 
+    obj.w = Math.max(10, parseFloat(e.target.value) || 10); 
+    // Kunci Rasio Tinggi (H) jika yang diubah Lebar (W)
+    if (obj.type === 'photoArea' && obj.ratio && obj.ratio !== 'free') {
+      const parts = obj.ratio.split(':');
+      if (parts.length === 2) obj.h = Math.round(obj.w / (parseFloat(parts[0]) / parseFloat(parts[1])));
+    }
+    sync(); 
+    renderProps(); // Refresh UI agar angka tinggi di panel ikut berubah
+  };
+
+  if($('propH')) $('propH').oninput = e=>{ 
+    obj.h = Math.max(10, parseFloat(e.target.value) || 10); 
+    // Kunci Rasio Lebar (W) jika yang diubah Tinggi (H)
+    if (obj.type === 'photoArea' && obj.ratio && obj.ratio !== 'free') {
+      const parts = obj.ratio.split(':');
+      if (parts.length === 2) obj.w = Math.round(obj.h * (parseFloat(parts[0]) / parseFloat(parts[1])));
+    }
+    sync(); 
+    renderProps(); // Refresh UI agar angka lebar di panel ikut berubah
+  };
+
   if($('propRot')) $('propRot').oninput = e=>{ obj.rotation=parseFloat(e.target.value)||0; sync(); renderProps(); };
 
   if($('propText')) $('propText').oninput = e=>{ obj.text=e.target.value; sync(); };
@@ -1150,7 +1211,21 @@ function bindPropsEvents(obj){
       const file = inp.files[0];
       if(!file) return;
       const reader = new FileReader();
-      reader.onload = ()=>{ obj.src = reader.result; sync(); };
+      reader.onload = ()=>{ 
+        // Buat elemen image sementara untuk membaca dimensi asli
+        const img = new Image();
+        img.onload = () => {
+          obj.src = reader.result;
+          obj.ratio = img.width / img.height; // Simpan rasio gambar asli
+          
+          // Sesuaikan tinggi objek saat ini agar sesuai dengan rasio gambar baru
+          obj.h = Math.round(obj.w / obj.ratio);
+          
+          sync(); 
+          renderProps();
+        };
+        img.src = reader.result;
+      };
       reader.readAsDataURL(file);
       inp.value='';
     };
