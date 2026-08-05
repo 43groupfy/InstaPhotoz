@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photobooth - Galeri Publik</title>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- JSZip untuk download multiple files -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    
+    <style>
+        :root {
+            --bg: #14161c;
+            --panel: #1c1f28;
+            --panel-2: #232733;
+            --border: #2e3340;
+            --border-light: #3a4055;
+            --text: #e8eaf0;
+            --text-dim: #8b90a3;
+            --accent: #7c6ef2;
+            --accent-2: #5ad1c9;
+            --danger: #f2617c;
+            --success: #5ad18a;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+        
+        button { font-family: inherit; cursor: pointer; border: none; outline: none; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 4px; }
+
+        .btn { padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; background: var(--panel-2); color: var(--text); border: 1px solid var(--border); display: inline-flex; align-items: center; gap: 6px; transition: 0.15s; text-decoration: none; }
+        .btn:hover { background: var(--border-light); }
+        .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+        .btn-primary:hover { background: #6c5ee0; }
+        .btn-danger { background: rgba(242, 97, 124, 0.1); color: var(--danger); border-color: rgba(242, 97, 124, 0.3); }
+        .btn-danger:hover { background: var(--danger); color: #fff; }
+
+        /* ===== TOPBARS ===== */
+        .topbar {
+            height: 60px; display: flex; align-items: center; justify-content: space-between;
+            padding: 0 20px; background: rgba(28, 31, 40, 0.95); border-bottom: 1px solid var(--border);
+            position: sticky; top: 0; z-index: 100; backdrop-filter: blur(8px);
+            transition: all 0.3s ease;
+        }
+        .brand { font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+        .brand-badge { width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg, var(--accent), var(--accent-2)); display: flex; align-items: center; justify-content: center; color: #fff; }
+        
+        /* Selection Topbar (Muncul saat ada item terpilih) */
+        .topbar-selection {
+            position: fixed; top: -70px; left: 0; right: 0; height: 60px;
+            background: var(--accent); color: #fff; z-index: 105;
+            display: flex; align-items: center; justify-content: space-between; padding: 0 24px;
+            transition: top 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 20px rgba(124, 110, 242, 0.4);
+        }
+        .topbar-selection.active { top: 0; }
+        .ts-left { display: flex; align-items: center; gap: 16px; font-weight: 600; font-size: 15px; }
+        .ts-close { width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; color: #fff; transition: 0.2s; }
+        .ts-close:hover { background: rgba(255,255,255,0.3); }
+        .ts-actions { display: flex; gap: 10px; }
+        .ts-actions .btn { background: #fff; color: var(--accent); border-color: #fff; }
+        .ts-actions .btn:hover { background: #f0f0f0; }
+        .ts-actions .btn-danger { background: var(--danger); color: #fff; border-color: var(--danger); }
+        .ts-actions .btn-danger:hover { background: #e04f6a; }
+
+        /* ===== GALLERY LAYOUT ===== */
+        .gallery-wrap { padding: 30px 24px 80px; max-width: 1200px; margin: 0 auto; }
+        .gallery-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 30px; }
+        .gallery-head h1 { margin: 0 0 6px; font-size: 24px; }
+        .gallery-head p { margin: 0; color: var(--text-dim); font-size: 14px; }
+
+        /* Grouping by Date */
+        .day-group { margin-bottom: 40px; }
+        .day-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding-bottom: 12px; margin-bottom: 16px; border-bottom: 1px solid var(--border);
+        }
+        .day-title { font-size: 16px; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 8px; }
+        
+        /* Checkbox Kustom */
+        .custom-checkbox {
+            display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: var(--text-dim); user-select: none;
+        }
+        .custom-checkbox input { display: none; }
+        .chk-box {
+            width: 18px; height: 18px; border: 2px solid var(--border-light); border-radius: 4px;
+            display: flex; align-items: center; justify-content: center; transition: 0.2s; color: transparent; font-size: 10px;
+        }
+        .custom-checkbox:hover .chk-box { border-color: var(--accent); }
+        .custom-checkbox input:checked + .chk-box { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+        /* Grid Item (Diperkecil) */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 16px;
+        }
+        .gallery-item {
+            background: var(--panel); border: 2px solid transparent; border-radius: 12px;
+            overflow: hidden; position: relative; transition: 0.2s; cursor: pointer;
+        }
+        .gallery-item:hover { border-color: var(--border-light); transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.3); }
+        .gallery-item.selected { border-color: var(--accent); background: rgba(124, 110, 242, 0.1); }
+        
+        .gallery-img-wrap { position: relative; width: 100%; aspect-ratio: 3/4; background: #0c0d11; overflow: hidden; }
+        .gallery-img { width: 100%; height: 100%; object-fit: contain; display: block; transition: 0.3s; }
+        
+        /* Item Selection Checkbox (Absolute) */
+        .item-chk { position: absolute; top: 10px; left: 10px; z-index: 10; opacity: 0; transition: 0.2s; }
+        .gallery-item:hover .item-chk, .gallery-item.selected .item-chk { opacity: 1; }
+
+        /* Item Hover Actions */
+        .item-actions {
+            position: absolute; inset: 0; background: rgba(8, 8, 12, 0.6);
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            opacity: 0; transition: 0.2s; backdrop-filter: blur(2px);
+        }
+        .gallery-item:hover .item-actions { opacity: 1; }
+        .gallery-item.selected .item-actions { opacity: 0; pointer-events: none; } /* Sembunyikan hover saat dipilih */
+
+        .act-btn {
+            width: 36px; height: 36px; border-radius: 50%; background: var(--panel); color: var(--text);
+            display: flex; align-items: center; justify-content: center; font-size: 14px; transition: 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+        .act-btn:hover { background: var(--accent); color: #fff; transform: scale(1.1); }
+        .act-btn.del:hover { background: var(--danger); }
+
+        .gallery-meta { padding: 10px; text-align: center; }
+        .g-time { font-size: 11px; color: var(--text-dim); margin-bottom: 3px; }
+        .g-name { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        
+        .empty-state { text-align: center; padding: 60px 20px; color: var(--text-dim); }
+
+        /* ===== PREVIEW MODAL ===== */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(8, 8, 12, 0.9);
+            display: none; align-items: flex-start; justify-content: center; 
+            z-index: 500; backdrop-filter: blur(4px);
+            overflow: auto; /* Memungkinkan scroll jika ukuran gambar melampaui layar */
+            padding: 40px 20px;
+        }
+        .modal-overlay.active { display: flex; }
+        
+        .preview-content {
+            position: relative; max-width: 90vw; max-height: 90vh;
+            margin: auto; /* Menjaga gambar tetap di tengah jika lebih kecil dari layar */
+            display: flex; flex-direction: column; align-items: center;
+        }
+        
+        .preview-img { 
+            max-width: 100%; 
+            max-height: 85vh; 
+            border-radius: 8px; 
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6); 
+        }
+        
+        .modal-close {
+            position: fixed; top: 20px; right: 20px; width: 40px; height: 40px; 
+            border-radius: 50%; background: rgba(255,255,255,0.2); 
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; font-size: 20px; cursor: pointer; transition: 0.2s;
+            z-index: 510; /* Memastikan tombol close selalu berada di atas gambar */
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.4); }
+
+        /* Loader Overlay */
+        .loader-overlay {
+            position: fixed; inset: 0; background: rgba(8, 8, 12, 0.8); z-index: 600; display: none;
+            flex-direction: column; align-items: center; justify-content: center; color: #fff;
+        }
+        .loader-overlay.active { display: flex; }
+        .loader-overlay i { font-size: 40px; margin-bottom: 16px; color: var(--accent); }
+    </style>
+</head>
+<body>
+
+    <!-- Default Topbar -->
+    <div class="topbar">
+        <div class="brand"><div class="brand-badge"><i class="fas fa-camera"></i></div>Photobooth Gallery</div>
+        <div style="display:flex; gap:10px;">
+            <a href="index.html" class="btn"><i class="fas fa-home"></i> Portal</a>
+        </div>
+    </div>
+
+    <!-- Selection Topbar (Sticky Top) -->
+    <div class="topbar-selection" id="selectionTopbar">
+        <div class="ts-left">
+            <button class="ts-close" onclick="clearSelection()"><i class="fas fa-times"></i></button>
+            <span id="selectedCountText">0 item terpilih</span>
+        </div>
+        <div class="ts-actions">
+            <button class="btn btn-danger" onclick="deleteSelectedFiles()"><i class="fas fa-trash"></i> Hapus</button>
+            <button class="btn" onclick="downloadSelectedZip()"><i class="fas fa-file-zipper"></i> Download ZIP</button>
+        </div>
+    </div>
+
+    <div class="gallery-wrap">
+        <div class="gallery-head">
+            <div>
+                <h1>Momen Anda</h1>
+                <p>Kumpulan hasil kolase photobooth</p>
+            </div>
+            <label class="custom-checkbox" style="font-size: 14px; font-weight: 600; background: var(--panel); padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border);">
+                <input type="checkbox" id="chkSelectAllGlobal" onchange="toggleSelectAllGlobal(this.checked)">
+                <div class="chk-box"><i class="fas fa-check"></i></div>
+                Pilih Semua Foto
+            </label>
+        </div>
+
+        <div id="galleryContainer"></div>
+    </div>
+
+    <!-- Preview Modal -->
+    <div class="modal-overlay" id="previewModal" onclick="closePreview(event)">
+        <div class="preview-content">
+            <div class="modal-close" onclick="closePreview(event)"><i class="fas fa-times"></i></div>
+            <img id="previewImg" class="preview-img" src="" alt="Preview" onclick="event.stopPropagation()">
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loader-overlay" id="loadingOverlay">
+        <i class="fas fa-spinner fa-spin"></i>
+        <h3 style="margin:0;">Memproses File...</h3>
+        <p id="loadingMsg" style="color:var(--text-dim); margin-top:8px;">Harap tunggu</p>
+    </div>
+
+    <script>
+        (function() {
+            'use strict';
+            
+            // --- STATE ---
+            let photosData = []; // Menyimpan semua data dari API/LocalStorage
+            let selectedIds = new Set(); // Menyimpan ID foto yang sedang di-select
+
+            const galleryContainer = document.getElementById('galleryContainer');
+            const selectionTopbar = document.getElementById('selectionTopbar');
+            const selectedCountText = document.getElementById('selectedCountText');
+            const chkSelectAllGlobal = document.getElementById('chkSelectAllGlobal');
+
+            // =====================================================================
+            // MOCK API
+            // =====================================================================
+            async function fetchGalleryFromCloud() {
+                return new Promise((resolve) => {
+                    setTimeout(() => {
+                        try {
+                            const raw = localStorage.getItem('pb_gallery');
+                            resolve(raw ? JSON.parse(raw) : []);
+                        } catch (e) { resolve([]); }
+                    }, 300);
+                });
+            }
+
+            async function saveGalleryToCloud(newData) {
+                // Mock API save
+                localStorage.setItem('pb_gallery', JSON.stringify(newData));
+                photosData = newData; // Update state lokal
+            }
+            // =====================================================================
+
+            // Format tanggal (contoh: "Senin, 12 Agustus 2026")
+            function formatDateGroup(ms) {
+                const d = new Date(ms);
+                return d.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            }
+
+            // Inisialisasi & Render
+            window.initGallery = async function() {
+                galleryContainer.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin" style="font-size:24px;"></i><br><br>Memuat gambar...</div>';
+                photosData = await fetchGalleryFromCloud();
+                
+                // Pastikan urutan selalu dari yang terbaru
+                photosData.sort((a, b) => b.timestamp - a.timestamp);
+                renderUI();
+            };
+
+            function renderUI() {
+                galleryContainer.innerHTML = '';
+                
+                if (photosData.length === 0) {
+                    galleryContainer.innerHTML = '<div class="empty-state"><i class="fas fa-images" style="font-size:40px; margin-bottom:12px;"></i><br>Belum ada foto di galeri.</div>';
+                    chkSelectAllGlobal.disabled = true;
+                    return;
+                }
+                
+                chkSelectAllGlobal.disabled = false;
+
+                // 1. Kelompokkan berdasarkan tanggal
+                const groupedData = {};
+                photosData.forEach(p => {
+                    const dateStr = formatDateGroup(p.timestamp);
+                    if (!groupedData[dateStr]) groupedData[dateStr] = [];
+                    groupedData[dateStr].push(p);
+                });
+
+                // 2. Render HTML per grup
+                for (const [dateStr, photos] of Object.entries(groupedData)) {
+                    // Cek apakah semua foto di grup ini sudah terpilih
+                    const isAllInGroupSelected = photos.every(p => selectedIds.has(p.id));
+
+                    const groupDiv = document.createElement('div');
+                    groupDiv.className = 'day-group';
+                    
+                    // Header Grup
+                    let html = `
+                        <div class="day-header">
+                            <div class="day-title"><i class="far fa-calendar-alt"></i> ${dateStr}</div>
+                            <label class="custom-checkbox">
+                                <input type="checkbox" onchange="toggleGroupSelect('${dateStr}', this.checked)" ${isAllInGroupSelected ? 'checked' : ''}>
+                                <div class="chk-box"><i class="fas fa-check"></i></div>
+                                Pilih Hari Ini
+                            </label>
+                        </div>
+                        <div class="grid-container">
+                    `;
+
+                    // Isi Item Grup
+                    photos.forEach(p => {
+                        const isSelected = selectedIds.has(p.id);
+                        const timeStr = new Date(p.timestamp).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'});
+                        
+                        html += `
+                            <div class="gallery-item ${isSelected ? 'selected' : ''}" onclick="toggleSelect('${p.id}')">
+                                
+                                <label class="custom-checkbox item-chk" onclick="event.stopPropagation()">
+                                    <input type="checkbox" onchange="toggleSelect('${p.id}')" ${isSelected ? 'checked' : ''}>
+                                    <div class="chk-box"><i class="fas fa-check"></i></div>
+                                </label>
+
+                                <div class="gallery-img-wrap">
+                                    <img src="${p.url}" class="gallery-img" loading="lazy" alt="Foto">
+                                    <div class="item-actions">
+                                        <button class="act-btn" title="Lihat Penuh" onclick="event.stopPropagation(); openPreview('${p.id}')"><i class="fas fa-eye"></i></button>
+                                        <button class="act-btn" title="Download" onclick="event.stopPropagation(); downloadSingle('${p.id}')"><i class="fas fa-download"></i></button>
+                                        <button class="act-btn del" title="Hapus" onclick="event.stopPropagation(); deleteSingle('${p.id}')"><i class="fas fa-trash"></i></button>
+                                    </div>
+                                </div>
+                                <div class="gallery-meta">
+                                    <div class="g-time"><i class="far fa-clock"></i> ${timeStr}</div>
+                                    <div class="g-name">${p.templateName}</div>
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    html += `</div>`; // tutup grid-container
+                    groupDiv.innerHTML = html;
+                    galleryContainer.appendChild(groupDiv);
+                }
+
+                updateSelectionState();
+            }
+
+            // --- SELECTION LOGIC ---
+            
+            window.toggleSelect = function(id) {
+                if (selectedIds.has(id)) selectedIds.delete(id);
+                else selectedIds.add(id);
+                renderUI(); // Render ulang agar class .selected dan checkbox sinkron
+            };
+
+            window.toggleGroupSelect = function(dateStr, isChecked) {
+                const photosInGroup = photosData.filter(p => formatDateGroup(p.timestamp) === dateStr);
+                photosInGroup.forEach(p => {
+                    if (isChecked) selectedIds.add(p.id);
+                    else selectedIds.delete(p.id);
+                });
+                renderUI();
+            };
+
+            window.toggleSelectAllGlobal = function(isChecked) {
+                if (isChecked) {
+                    photosData.forEach(p => selectedIds.add(p.id));
+                } else {
+                    selectedIds.clear();
+                }
+                renderUI();
+            };
+
+            window.clearSelection = function() {
+                selectedIds.clear();
+                chkSelectAllGlobal.checked = false;
+                renderUI();
+            };
+
+            function updateSelectionState() {
+                const count = selectedIds.size;
+                if (count > 0) {
+                    selectedCountText.textContent = `${count} foto terpilih`;
+                    selectionTopbar.classList.add('active');
+                } else {
+                    selectionTopbar.classList.remove('active');
+                    chkSelectAllGlobal.checked = false;
+                }
+                
+                // Cek apakah select all global harus tercentang (jika total foto == yang di-select)
+                if (photosData.length > 0 && count === photosData.length) {
+                    chkSelectAllGlobal.checked = true;
+                } else {
+                    chkSelectAllGlobal.checked = false;
+                }
+            }
+
+
+            // --- ACTIONS (SINGLE) ---
+
+            window.openPreview = function(id) {
+                const photo = photosData.find(p => p.id === id);
+                if(photo) {
+                    document.getElementById('previewImg').src = photo.url;
+                    document.getElementById('previewModal').classList.add('active');
+                }
+            };
+            
+            window.closePreview = function(e) {
+                if(e.target.id === 'previewModal' || e.target.closest('.modal-close')) {
+                    document.getElementById('previewModal').classList.remove('active');
+                    document.getElementById('previewImg').src = "";
+                }
+            };
+
+            window.downloadSingle = function(id) {
+                const photo = photosData.find(p => p.id === id);
+                if(!photo) return;
+                
+                const link = document.createElement('a');
+                link.download = `Photobooth_${photo.templateName}_${photo.timestamp}.jpg`;
+                link.href = photo.url;
+                link.click();
+            };
+
+            window.deleteSingle = async function(id) {
+                if(confirm('Hapus foto ini dari galeri?')) {
+                    const newData = photosData.filter(p => p.id !== id);
+                    await saveGalleryToCloud(newData);
+                    selectedIds.delete(id); // hapus dari selection jika ada
+                    renderUI();
+                }
+            };
+
+
+            // --- ACTIONS (BULK / SELECTED) ---
+
+            function showLoader(msg) {
+                document.getElementById('loadingMsg').textContent = msg;
+                document.getElementById('loadingOverlay').classList.add('active');
+            }
+            function hideLoader() {
+                document.getElementById('loadingOverlay').classList.remove('active');
+            }
+
+            window.deleteSelectedFiles = async function() {
+                if(confirm(`Yakin ingin menghapus ${selectedIds.size} foto terpilih secara permanen?`)) {
+                    showLoader('Menghapus data...');
+                    const newData = photosData.filter(p => !selectedIds.has(p.id));
+                    await saveGalleryToCloud(newData);
+                    clearSelection();
+                    hideLoader();
+                }
+            };
+
+            window.downloadSelectedZip = async function() {
+                if(selectedIds.size === 0) return;
+                showLoader(`Menyiapkan ${selectedIds.size} foto untuk ZIP...`);
+                
+                try {
+                    const zip = new JSZip();
+                    const imgFolder = zip.folder("Photobooth_Gallery");
+
+                    selectedIds.forEach(id => {
+                        const photo = photosData.find(p => p.id === id);
+                        if (photo && photo.url.startsWith('data:image')) {
+                            // Ekstrak string murni base64 (buang prefix data:image/jpeg;base64,)
+                            const base64Data = photo.url.split(',')[1];
+                            const filename = `${photo.templateName.replace(/\s+/g, '_')}_${photo.timestamp}.jpg`;
+                            imgFolder.file(filename, base64Data, {base64: true});
+                        }
+                    });
+
+                    document.getElementById('loadingMsg').textContent = 'Membuat file ZIP, mohon tunggu...';
+                    
+                    const zipContent = await zip.generateAsync({type: "blob"});
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(zipContent);
+                    link.download = `Photobooth_Export_${Date.now()}.zip`;
+                    link.click();
+                    
+                    clearSelection();
+                } catch (error) {
+                    console.error("Gagal membuat ZIP", error);
+                    alert("Terjadi kesalahan saat membuat file ZIP.");
+                } finally {
+                    hideLoader();
+                }
+            };
+
+            // Start
+            initGallery();
+        })();
+    </script>
+</body>
+</html>

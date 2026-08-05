@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Photobooth Frame Builder - Admin</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
   :root{
     --bg:#14161c;
@@ -168,19 +169,28 @@
   .sticker-icon-btn:hover{border-color:var(--accent);color:var(--text);}
   .sticker-icon-btn.picked{border-color:var(--accent);background:#2a2740;color:var(--accent);}
 
-  /* CENTER CANVAS AREA */
-  .canvas-area{
-    flex:1;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:center;
-    overflow:auto;
-    background:
-      radial-gradient(circle at 1px 1px, rgba(255,255,255,.04) 1px, transparent 0);
-    background-size:20px 20px;
-    position:relative;
-    padding:40px;
+  /* ===== CENTER CANVAS AREA ===== */
+  .canvas-area {
+    flex: 1;
+    display: grid;
+    place-content: safe center; /* Otomatis ke tengah, tapi aman dari terpotong saat overflow */
+    overflow: auto;
+    background: radial-gradient(circle at 1px 1px, rgba(255,255,255,.04) 1px, transparent 0);
+    background-size: 20px 20px;
+    position: relative;
+    /* Hapus padding dari sini */
+  }
+
+
+
+  #canvasStage {
+    position: relative;
+    background: #fff;
+    margin: auto;
+    box-shadow: 0 10px 40px rgba(0,0,0,.5);
+    overflow: hidden;
+    flex-shrink: 0; /* Mencegah canvas gepeng/terpotong */
+    transform-origin: top left; /* Ubah ke top left agar presisi di dalam wrapper */
   }
   .canvas-zoom-bar{
     position:absolute;bottom:16px;left:50%;transform:translateX(-50%);
@@ -191,13 +201,6 @@
   .zoom-btn{width:22px;height:22px;border-radius:50%;background:var(--panel-2);display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--text);}
   .zoom-btn:hover{background:var(--border-light);}
 
-  #canvasStage{
-    position:relative;
-    background:#fff;
-    box-shadow:0 10px 40px rgba(0,0,0,.5);
-    overflow:hidden;
-    transform-origin:center center;
-  }
   .canvas-object{
     position:absolute;
     cursor:move;
@@ -430,9 +433,15 @@
     </div>
   </div>
 
+  
   <!-- CENTER: CANVAS -->
   <div class="canvas-area" id="canvasArea">
-    <div id="canvasStage"></div>
+    
+    <!-- TAMBAHKAN WRAPPER INI -->
+    <div id="canvasWrapper">
+      <div id="canvasStage"></div>
+    </div>
+    
     <div class="canvas-zoom-bar">
       <button class="zoom-btn" id="zoomOut">−</button>
       <span id="zoomLabel">100%</span>
@@ -646,6 +655,8 @@ function showEditor(){
   tplNameInput.style.display = 'block';
   topbarEditorActions.style.display = 'flex';
   selectObject(null);
+
+  fitZoom();
 }
 
 document.getElementById('btnBackToList').onclick = ()=>{
@@ -707,9 +718,22 @@ function applyBackground(){
    ZOOM
 ========================================================= */
 function applyZoom(){
+  const wrapper = document.getElementById('canvasWrapper');
+  if(wrapper) {
+    wrapper.style.width = (canvasWpx * zoom) + 'px';
+    wrapper.style.height = (canvasHpx * zoom) + 'px';
+  }
+  
   canvasStage.style.transform = `scale(${zoom})`;
   zoomLabel.textContent = Math.round(zoom*100) + '%';
+  
+  // TAMBAHAN: Segarkan ukuran titik handle tiap kali zoom berubah
+  if(selectedId){
+    const el = document.getElementById(selectedId);
+    if(el) addHandlesRefresh(el);
+  }
 }
+
 function fitZoom(){
   const area = document.getElementById('canvasArea');
   const availW = area.clientWidth - 80;
@@ -785,19 +809,44 @@ function renderObjectEl(obj){
 
   if(obj.type === 'photoArea'){
     el.classList.add('photo-area');
+    
+    // Terapkan border radius yang dimasukkan user, dan overflow:hidden agar pattern terpotong rapi
+    el.style.borderRadius = (obj.borderRadius || 0) + 'px';
+    
+    // 1. Buat ukuran dinamis berdasarkan lebar objek (obj.w)
+    const dynamicBorder = Math.max(2, obj.w * 0.0075); // Border 0.75% dari lebar
+    const dynamicStripe = Math.max(8, obj.w * 0.02);   // Jarak garis background 2%
+    const dynamicIcon   = Math.max(16, obj.w * 0.15); // Ikon kamera 15% dari lebar
+    const dynamicText   = Math.max(10, obj.w * 0.05);  // Teks label 2% dari lebar
+    const dynamicPad    = Math.max(2, obj.w * 0.0075); // Padding teks 0.75%
+    
+    // 2. Terapkan border dan background pattern yang ukurannya sudah dibesarkan
+    el.style.border = `${dynamicBorder}px dashed #a8afc4`;
+    el.style.background = `repeating-linear-gradient(45deg, #dcdfe8, #dcdfe8 ${dynamicStripe}px, #eceef3 ${dynamicStripe}px, #eceef3 ${dynamicStripe*2}px)`;
+
     if(obj.imgSrc){
       el.style.backgroundImage = `url(${obj.imgSrc})`;
       el.style.backgroundSize = 'cover';
       el.style.backgroundPosition = 'center';
+      el.style.border = 'none'; // Hilangkan border kalau sudah ada foto
       el.classList.remove('photo-area');
     }
+
+    // 3. Terapkan ukuran dinamis pada Teks Rasio
     const label = document.createElement('div');
     label.className = 'photo-area-label';
     label.textContent = obj.ratio;
+    label.style.fontSize = dynamicText + 'px';
+    label.style.padding = `${dynamicPad}px ${dynamicPad * 1.5}px`;
+    label.style.borderRadius = (dynamicPad) + 'px';
+    label.style.top = dynamicBorder + 'px';
+    label.style.left = dynamicBorder + 'px';
     el.appendChild(label);
+
+    // 4. Terapkan ukuran dinamis pada Ikon Kamera
     if(!obj.imgSrc){
       const ic = document.createElement('div');
-      ic.style.cssText = 'font-size:22px;color:#8890a8;pointer-events:none;';
+      ic.style.cssText = `font-size:${dynamicIcon}px; color:#8890a8; pointer-events:none;`;
       ic.innerHTML = '<i class="fa-solid fa-camera"></i>';
       el.appendChild(ic);
     }
@@ -846,15 +895,27 @@ function renderObjectEl(obj){
 }
 
 function addHandles(el){
+  // Hitung kebalikan dari zoom agar ukuran titik selalu stabil di layar
+  const invZoom = 1 / zoom; 
+
   ['nw','ne','sw','se','n','s','e','w'].forEach(pos=>{
     const h = document.createElement('div');
     h.className = 'resize-handle rh-'+pos;
     h.dataset.handle = pos;
+    // Terapkan anti-zoom pada handle kotak
+    h.style.transform = `scale(${invZoom})`; 
     el.appendChild(h);
     attachResizeHandler(h, el, pos);
   });
+  
   const rot = document.createElement('div');
   rot.className = 'rotate-handle';
+  // Terapkan anti-zoom pada handle rotasi
+  rot.style.transform = `scale(${invZoom})`;
+  
+  // Perbaiki posisi garis vertikal rotasi (tali rotasi) agar ikut proporsional
+  rot.innerHTML = `<div style="position:absolute; top:12px; left:4px; width:2px; height:16px; background:var(--accent-2);"></div>`;
+  
   el.appendChild(rot);
   attachRotateHandler(rot, el);
 }
@@ -1083,21 +1144,25 @@ function deleteObject(id){
 /* =========================================================
    PROPERTIES PANEL
 ========================================================= */
+
 function renderProps(){
   const obj = objects.find(o=>o.id===selectedId);
   if(!obj){
     propsPanel.innerHTML = '<div class="layer-empty">Pilih objek pada canvas untuk mengatur properti.</div>';
     return;
   }
+  
   let html = `<div class="prop-group-title">${TYPE_LABEL[obj.type]}</div>`;
+  
+  // PERBAIKAN: Gunakan flexbox inline dengan width 50% dan box-sizing border-box agar rapi
   html += `
-    <div class="prop-row-2">
-      <div><label style="display:block;margin-bottom:3px;">X</label><input type="number" id="propX" value="${obj.x}"></div>
-      <div><label style="display:block;margin-bottom:3px;">Y</label><input type="number" id="propY" value="${obj.y}"></div>
+    <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+      <div style="width: 50%;"><label style="display:block;margin-bottom:3px;font-size:11px;color:var(--text-dim);">X</label><input type="number" id="propX" value="${obj.x}" style="width: 100%; box-sizing: border-box;"></div>
+      <div style="width: 50%;"><label style="display:block;margin-bottom:3px;font-size:11px;color:var(--text-dim);">Y</label><input type="number" id="propY" value="${obj.y}" style="width: 100%; box-sizing: border-box;"></div>
     </div>
-    <div class="prop-row-2">
-      <div><label style="display:block;margin-bottom:3px;">Lebar</label><input type="number" id="propW" value="${obj.w}"></div>
-      <div><label style="display:block;margin-bottom:3px;">Tinggi</label><input type="number" id="propH" value="${obj.h}"></div>
+    <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+      <div style="width: 50%;"><label style="display:block;margin-bottom:3px;font-size:11px;color:var(--text-dim);">Lebar</label><input type="number" id="propW" value="${obj.w}" style="width: 100%; box-sizing: border-box;"></div>
+      <div style="width: 50%;"><label style="display:block;margin-bottom:3px;font-size:11px;color:var(--text-dim);">Tinggi</label><input type="number" id="propH" value="${obj.h}" style="width: 100%; box-sizing: border-box;"></div>
     </div>
     <div class="prop-row">
       <label>Rotasi</label>
@@ -1141,9 +1206,11 @@ function renderProps(){
       <div class="prop-row"><button class="btn btn-sm" id="propUploadLogo"><i class="fa-solid fa-folder-open"></i> Upload Gambar</button></div>
     `;
   } else if(obj.type === 'photoArea'){
+    // PERBAIKAN: Tambahkan input Radius di sini
     html += `
       <div class="prop-group-title">Photo Area</div>
       <div class="prop-row"><label>Rasio</label><span style="font-size:12px;font-weight:700;">${obj.ratio}</span></div>
+      <div class="prop-row"><label>Radius</label><input type="number" id="propRadius" value="${obj.borderRadius||0}" min="0" style="width:100%; box-sizing:border-box;"></div>
       <div class="prop-row" style="font-size:11px;color:var(--text-dim);">Foto akan diisi oleh User saat sesi photobooth.</div>
     `;
   }
@@ -1182,6 +1249,8 @@ function bindPropsEvents(obj){
     sync(); 
     renderProps(); // Refresh UI agar angka lebar di panel ikut berubah
   };
+
+  if($('propRadius')) $('propRadius').oninput = e=>{ obj.borderRadius=parseFloat(e.target.value)||0; sync(); };
 
   if($('propRot')) $('propRot').oninput = e=>{ obj.rotation=parseFloat(e.target.value)||0; sync(); renderProps(); };
 
@@ -1287,9 +1356,31 @@ document.getElementById('cancelRatio').onclick = ()=> ratioModal.classList.remov
 document.getElementById('confirmRatio').onclick = ()=>{
   if(!pickedRatio){ alert('Pilih rasio terlebih dahulu.'); return; }
   ratioModal.classList.remove('active');
-  let w=160, h=160*(pickedRatio.h/pickedRatio.w);
-  if(pickedRatio.key==='free'){ w=160; h=120; }
-  addObject({type:'photoArea', x:60, y:60, w:Math.round(w), h:Math.round(h), rotation:0, ratio:pickedRatio.key});
+  
+  // Buat ukuran lebar default menjadi 60% dari total lebar canvas
+  let baseWidth = canvasWpx * 0.9; 
+  
+  let w = baseWidth;
+  let h = baseWidth * (pickedRatio.h / pickedRatio.w);
+  
+  if(pickedRatio.key === 'free'){ 
+    w = baseWidth; 
+    h = baseWidth * 0.75; // Default 4:3 untuk opsi 'Bebas'
+  }
+  
+  // Hitung posisi X agar elemen langsung muncul di tengah canvas secara horizontal
+  let startX = (canvasWpx - w) / 2;
+  let startY = 100; // Jarak dari atas
+  
+  addObject({
+    type: 'photoArea', 
+    x: Math.round(startX), 
+    y: Math.round(startY), 
+    w: Math.round(w), 
+    h: Math.round(h), 
+    rotation: 0, 
+    ratio: pickedRatio.key
+  });
 };
 
 /* =========================================================
@@ -1350,69 +1441,94 @@ document.getElementById('bgTextureBtn').onclick = ()=> setBgMode('texture');
 document.getElementById('bgImageBtn').onclick = ()=> setBgMode('image');
 
 /* =========================================================
-   SAVE TEMPLATE
+   SAVE TEMPLATE (Menggunakan html2canvas + Fix Transparan & Sembunyikan Rasio)
 ========================================================= */
-document.getElementById('btnSaveTpl').onclick = ()=>{
+document.getElementById('btnSaveTpl').onclick = async () => {
   const name = tplNameInput.value.trim() || 'Template Tanpa Nama';
   const canvasLabel = canvasSizeSelect.options[canvasSizeSelect.selectedIndex].text;
 
-  // generate thumbnail via simple snapshot using canvas element rendering (basic DOM->canvas not trivial without lib,
-  // so we store a lightweight CSS-based preview by reusing background + first photoArea color as a proxy)
-  const thumb = generateThumbSvg();
+  // 1. Hilangkan seleksi objek agar garis biru/handle tidak ikut terfoto
+  selectObject(null);
 
-  const data = {
-    id: currentTpl ? currentTpl.id : ('tpl_' + Date.now()),
-    name,
-    status: currentTpl ? currentTpl.status : 'hidden',
-    canvasPreset: canvasSizeSelect.value,
-    canvasWpx, canvasHpx,
-    canvasLabel,
-    background: canvasBg,
-    objects: JSON.parse(JSON.stringify(objects)),
-    idCounter,
-    thumb,
-    updatedAt: Date.now(),
-  };
+  // 2. Simpan status zoom saat ini, dan kembalikan ke 100% untuk difoto
+  const currentZoom = zoom;
+  zoom = 1;
+  applyZoom();
 
-  if(currentTpl){
-    const idx = templates.findIndex(t=>t.id===currentTpl.id);
-    if(idx>=0) templates[idx] = data; else templates.push(data);
-  } else {
-    templates.push(data);
-  }
-  currentTpl = data;
-  saveTemplatesStore();
-  showList();
-};
-
-function generateThumbSvg(){
-  // lightweight SVG-based thumbnail approximating the template layout
-  const scale = 200 / canvasWpx;
-  const w = 200, h = Math.round(canvasHpx*scale);
-  let bgFill = '#ffffff';
-  if(canvasBg.type==='solid') bgFill = canvasBg.color;
-  else if(canvasBg.type==='gradient') bgFill = canvasBg.c1;
-  else if(canvasBg.type==='texture') bgFill = canvasBg.base;
-  else bgFill = '#e5e5e5';
-
-  let shapes = '';
-  objects.slice().sort((a,b)=>a.z-b.z).forEach(o=>{
-    const x=o.x*scale, y=o.y*scale, w2=o.w*scale, h2=o.h*scale;
-    if(o.type==='photoArea'){
-      shapes += `<rect x="${x}" y="${y}" width="${w2}" height="${h2}" fill="#dcdfe8" stroke="#a8afc4" stroke-width="1"/>`;
-    } else if(o.type==='shape'){
-      shapes += `<rect x="${x}" y="${y}" width="${w2}" height="${h2}" fill="${o.color}" rx="${o.shape==='circle'?w2/2:(o.shape==='rounded'?6:0)}"/>`;
-    } else if(o.type==='text'){
-      shapes += `<rect x="${x}" y="${y}" width="${w2}" height="${Math.max(4,h2*0.3)}" fill="${o.color||'#333'}" opacity="0.6"/>`;
-    } else if(o.type==='logo' || o.type==='sticker'){
-      shapes += `<rect x="${x}" y="${y}" width="${w2}" height="${h2}" fill="#bbb" opacity="0.5"/>`;
-    }
+  // 3. TRIK FIX: Simpan background, ubah warna solid, dan sembunyikan tulisan rasio
+  const photoAreas = document.querySelectorAll('.photo-area');
+  const originalBgs = [];
+  photoAreas.forEach((pa, i) => {
+    originalBgs[i] = pa.style.background;
+    pa.style.background = '#dcdfe8'; // Ubah jadi abu-abu solid saat difoto
   });
 
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect width="${w}" height="${h}" fill="${bgFill}"/>${shapes}</svg>`;
-  return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
-}
+  // Ambil semua elemen label rasio dan sembunyikan
+  const ratioLabels = document.querySelectorAll('.photo-area-label');
+  ratioLabels.forEach(label => {
+    label.style.display = 'none'; // Sembunyikan
+  });
 
+  const btnSave = document.getElementById('btnSaveTpl');
+  const originalBtnText = btnSave.innerHTML;
+  btnSave.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...';
+  btnSave.disabled = true;
+
+  try {
+    const canvasEl = document.getElementById('canvasStage');
+    const capturedCanvas = await html2canvas(canvasEl, {
+      scale: 0.4,
+      useCORS: true,
+      backgroundColor: null
+    });
+    
+    const thumb = capturedCanvas.toDataURL('image/jpeg', 0.85);
+
+    const data = {
+      id: currentTpl ? currentTpl.id : ('tpl_' + Date.now()),
+      name,
+      status: currentTpl ? currentTpl.status : 'hidden',
+      canvasPreset: canvasSizeSelect.value,
+      canvasWpx, canvasHpx,
+      canvasLabel,
+      background: canvasBg,
+      objects: JSON.parse(JSON.stringify(objects)),
+      idCounter,
+      thumb, 
+      updatedAt: Date.now(),
+    };
+
+    if(currentTpl){
+      const idx = templates.findIndex(t=>t.id===currentTpl.id);
+      if(idx>=0) templates[idx] = data; else templates.push(data);
+    } else {
+      templates.push(data);
+    }
+    
+    currentTpl = data;
+    saveTemplatesStore();
+    showList();
+
+  } catch (error) {
+    console.error("Gagal membuat thumbnail:", error);
+    alert("Terjadi kesalahan saat membuat thumbnail.");
+  } finally {
+    // 4. Kembalikan background photo area dan tampilkan kembali tulisan rasio
+    photoAreas.forEach((pa, i) => {
+      pa.style.background = originalBgs[i];
+    });
+    
+    ratioLabels.forEach(label => {
+      label.style.display = 'block'; // Munculkan kembali
+    });
+
+    // 5. Kembalikan kondisi tombol dan zoom seperti semula
+    btnSave.innerHTML = originalBtnText;
+    btnSave.disabled = false;
+    zoom = currentZoom;
+    applyZoom();
+  }
+};
 /* =========================================================
    KEYBOARD SHORTCUTS
 ========================================================= */

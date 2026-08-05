@@ -1430,8 +1430,9 @@
                 ctx.translate(captureCanvas.width, 0);
                 ctx.scale(-1, 1);
                 ctx.drawImage(cameraVideo, srcX, srcY, srcW, srcH, 0, 0, captureCanvas.width, captureCanvas.height);
-
+                
                 capturedDataUrl = captureCanvas.toDataURL('image/jpeg', 0.92);
+                
                 cameraPreviewImg.src = capturedDataUrl;
                 cameraPreviewImg.style.left = boxX + 'px';
                 cameraPreviewImg.style.top = boxY + 'px';
@@ -1452,7 +1453,7 @@
 
             /* =========================================================
                PROSES (final render + save to admin history)
-            ========================================================= */
+            
             document.getElementById('btnProses').onclick = () => {
                 document.getElementById('processingOverlay').classList.add('active');
                 setTimeout(() => {
@@ -1462,6 +1463,96 @@
                     // Render result dengan ukuran penuh
                     renderResultStage();
                 }, 900);
+            };
+            ========================================================= */
+
+            // =====================================================================
+            // MOCK API: FUNGSI PENYIMPANAN DATA (Siap Diganti ke Cloud Storage)
+            // =====================================================================
+            async function saveImageToCloud(dataUrl, templateName) {
+                // TODO (CLOUD): 
+                // 1. Convert dataUrl ke Blob
+                // 2. Upload Blob ke Firebase Storage / S3
+                // 3. Dapatkan Public URL hasil upload
+                // 4. Simpan URL tersebut ke Database
+                
+                // MOCK UP: Simpan langsung ke LocalStorage sebagai Base64
+                return new Promise((resolve, reject) => {
+                    try {
+                        const raw = localStorage.getItem('pb_gallery');
+                        const gallery = raw ? JSON.parse(raw) : [];
+                        
+                        // Tambahkan foto baru di urutan paling atas
+                        gallery.unshift({
+                            id: 'gal_' + Date.now(),
+                            url: dataUrl,
+                            templateName: templateName,
+                            timestamp: Date.now()
+                        });
+                        
+                        localStorage.setItem('pb_gallery', JSON.stringify(gallery));
+                        resolve(true);
+                    } catch (e) {
+                        console.warn("Penyimpanan gagal! LocalStorage mungkin penuh.", e);
+                        reject(e);
+                    }
+                });
+            }
+            // =====================================================================
+
+            /* =========================================================
+               PROSES (final render + save to cloud + save history)
+            ========================================================= */
+            document.getElementById('btnProses').onclick = async () => {
+                document.getElementById('processingOverlay').classList.add('active');
+                
+                // 1. Bikin kontainer off-screen sementara
+                const offscreenForGallery = document.createElement('div');
+                offscreenForGallery.style.position = 'absolute';
+                offscreenForGallery.style.left = '-9999px'; 
+                offscreenForGallery.style.top = '-9999px';
+                offscreenForGallery.style.zIndex = '-1';
+                document.body.appendChild(offscreenForGallery);
+
+                // --- KEMBALIKAN KE RESOLUSI ASLI (Tinggi) ---
+                const isMobile = window.innerWidth <= 768; 
+                let safeMaxDim = isMobile ? 1200 : 2400; // 2400px untuk PC, 1200px untuk HP
+
+                renderTemplateStatic(offscreenForGallery, activeTemplate, sessionPhotos, safeMaxDim, false);
+
+                try {
+                    // 2. Render gambar resolusi tinggi
+                    const canvas = await html2canvas(offscreenForGallery, {
+                        scale: 1, 
+                        useCORS: true,
+                        logging: false
+                    });
+                    
+                    // 3. Gunakan kualitas JPEG yang tinggi (0.95 atau 95%) 
+                    // bukan 0.6 seperti sebelumnya
+                    // Hapus 'image/jpeg' dan angka kualitasnya, cukup panggil begini:
+                    // const highResDataUrl = canvas.toDataURL('image/png');
+                    const highResDataUrl = canvas.toDataURL('image/jpeg', 0.95);
+                    document.body.removeChild(offscreenForGallery);
+
+                    // 4. Panggil fungsi Cloud (Mock API)
+                    await saveImageToCloud(highResDataUrl, activeTemplate.name);
+
+                    // 5. Lanjutkan ke halaman hasil
+                    finalizeSession();
+                    document.getElementById('processingOverlay').classList.remove('active');
+                    showScreen('screenResult');
+                    
+                    setTimeout(() => renderResultStage(), 100);
+
+                } catch (err) {
+                    console.error("Gagal memproses gambar untuk galeri:", err);
+                    alert("Terjadi kesalahan saat memproses gambar.");
+                    document.getElementById('processingOverlay').classList.remove('active');
+                    if (document.body.contains(offscreenForGallery)) {
+                        document.body.removeChild(offscreenForGallery);
+                    }
+                }
             };
 
             function finalizeSession() {

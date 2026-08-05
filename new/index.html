@@ -41,11 +41,13 @@
 
   .card-grid{
     display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:22px;
+    grid-template-columns:1fr 1fr 1fr;
+    gap:15px;
     width:100%;
     max-width:640px;
   }
+
+  .card-grid p{height: 50px}
   @media (max-width:560px){ .card-grid{grid-template-columns:1fr;} }
   .role-card{
     background:var(--panel);
@@ -96,15 +98,22 @@
     <a href="photobooth-admin.html" class="role-card">
       <div class="role-icon"><i class="fa-solid fa-pen-ruler"></i></div>
       <h2>Admin</h2>
-      <p>Buat &amp; kelola template frame — canvas editor, photo area, layer, background.</p>
+      <p>Admin photobooth — Buat &amp; kelola template frame, canvas editor, background.</p>
       <div class="go">Buka Admin <i class="fa-solid fa-arrow-right"></i></div>
     </a>
 
     <a href="photobooth-user.html" class="role-card">
       <div class="role-icon"><i class="fa-solid fa-camera"></i></div>
       <h2>User</h2>
-      <p>Operator photobooth — pilih template, ambil foto per photo area, cetak hasil.</p>
+      <p>User photobooth — pilih template, ambil foto per photo area, cetak hasil.</p>
       <div class="go">Buka User <i class="fa-solid fa-arrow-right"></i></div>
+    </a>
+
+    <a href="photobooth-gallery.html" class="role-card">
+      <div class="role-icon"><i class="fa-solid fa-image"></i></div>
+      <h2>Gallery</h2>
+      <p>Gallery photobooth — temukan dan pilih foto kemudian unduh hasil.</p>
+      <div class="go">Buka Gallery <i class="fa-solid fa-arrow-right"></i></div>
     </a>
   </div>
 
